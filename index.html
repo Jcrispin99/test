@@ -3,42 +3,67 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Checkout Izipay</title>
+  <title>Checkout Personalizado</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 2rem;
-      background: #f9f9f9;
+      margin: 0;
+      padding: 0;
+      background: #f4f4f4;
     }
-    h1, h2 {
-      color: #333;
+    header {
+      background: #fff;
+      padding: 20px;
+      text-align: center;
+      border-bottom: 1px solid #ddd;
     }
-    .cart-item, .form-section {
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      padding: 20px;
+      max-width: 1200px;
+      margin: auto;
+      gap: 20px;
+    }
+    .form-section, .summary-section {
       background: white;
-      padding: 1rem;
-      margin-bottom: 1rem;
+      padding: 20px;
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .form-section {
+      flex: 1;
+      min-width: 300px;
+    }
+    .summary-section {
+      flex: 1;
+      min-width: 300px;
     }
     label {
       display: block;
       margin-top: 10px;
     }
-    input, textarea {
+    input, textarea, select {
       width: 100%;
       padding: 8px;
       margin-top: 4px;
       border-radius: 4px;
       border: 1px solid #ccc;
     }
+    .cart-item {
+      margin-bottom: 10px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
     .total {
-      font-size: 1.2rem;
+      font-size: 18px;
       font-weight: bold;
-      margin-top: 2rem;
+      margin-top: 20px;
     }
     .pay-button {
-      margin-top: 2rem;
-      padding: 1rem 2rem;
+      width: 100%;
+      margin-top: 20px;
+      padding: 1rem;
       background-color: #007bff;
       color: white;
       font-size: 16px;
@@ -52,59 +77,61 @@
   </style>
 </head>
 <body>
-  <h1>Resumen del Pedido</h1>
-  <div id="cart"></div>
-  <div id="total" class="total"></div>
+  <header>
+    <img src="logo-o-tema.jpg" alt="Logo o Imagen del Tema" style="max-height: 80px;">
+  </header>
 
-  <h2>Datos del Cliente</h2>
-  <div class="form-section">
-    <form id="checkout-form">
-      <label>Nombres
-        <input type="text" name="first_name" required>
-      </label>
-      <label>Apellidos
-        <input type="text" name="last_name" required>
-      </label>
-      <label>Correo electrónico
-        <input type="email" name="email" required>
-      </label>
-      <label>Teléfono
-        <input type="tel" name="phone" required>
-      </label>
+  <div class="container">
+    <!-- Datos del cliente y formulario -->
+    <div class="form-section">
+      <h2>Datos del Cliente</h2>
+      <form id="checkout-form">
+        <label>Nombres<input type="text" name="first_name" required></label>
+        <label>Apellidos<input type="text" name="last_name" required></label>
+        <label>Correo electrónico<input type="email" name="email" required></label>
+        <label>Teléfono<input type="tel" name="phone" required></label>
 
-      <h2>Dirección de Envío</h2>
-      <label>Dirección
-        <input type="text" name="address1" required>
-      </label>
-      <label>Referencia / Interior
-        <input type="text" name="address2">
-      </label>
-      <label>Ciudad
-        <input type="text" name="city" required>
-      </label>
-      <label>Departamento / Región
-        <input type="text" name="province" required>
-      </label>
-      <label>Código postal
-        <input type="text" name="zip" required>
-      </label>
-      <label>País
-        <input type="text" name="country" required value="Perú">
-      </label>
+        <h2>Dirección de Envío</h2>
+        <label>Dirección<input type="text" name="address1" required></label>
+        <label>Referencia / Interior<input type="text" name="address2"></label>
+        <label>Ciudad<input type="text" name="city" required></label>
+        <label>Departamento / Región<input type="text" name="province" required></label>
+        <label>Código postal<input type="text" name="zip" required></label>
+        <label>País<input type="text" name="country" required value="Perú"></label>
 
-      <button type="submit" class="pay-button">Confirmar Pedido</button>
-    </form>
+        <h2>Método de Envío</h2>
+        <label>Selecciona un método
+          <select name="shipping_method" required>
+            <option value="">Selecciona</option>
+            <option value="estandar">Envío Estándar - S/ 10.00</option>
+            <option value="express">Envío Express - S/ 20.00</option>
+            <option value="pickup">Retiro en tienda - Gratis</option>
+          </select>
+        </label>
+
+        <label>Notas adicionales (opcional)<textarea name="nota" rows="3"></textarea></label>
+        <label><input type="checkbox" name="acepta_terminos" required> Acepto los términos y condiciones</label>
+
+        <button type="submit" class="pay-button">Confirmar Pedido</button>
+      </form>
+    </div>
+
+    <!-- Detalles del carrito -->
+    <div class="summary-section">
+      <h2>Resumen del Pedido</h2>
+      <div id="cart"></div>
+      <div class="total" id="subtotal"></div>
+      <div class="total" id="shipping-cost"></div>
+      <div class="total" id="total"></div>
+    </div>
   </div>
 
   <script>
+    let payload = null;
     function parseQueryData() {
       const params = new URLSearchParams(window.location.search);
       const data = params.get('data');
-      if (!data) {
-        document.getElementById('cart').innerHTML = '<p>No se encontraron datos del carrito.</p>';
-        return null;
-      }
-
+      if (!data) return null;
       try {
         return JSON.parse(decodeURIComponent(data));
       } catch (err) {
@@ -115,61 +142,65 @@
 
     function renderCart(payload) {
       const cartDiv = document.getElementById('cart');
+      let subtotal = 0;
       payload.items.forEach(item => {
+        subtotal += item.line_price;
         const itemDiv = document.createElement('div');
         itemDiv.className = 'cart-item';
-        itemDiv.innerHTML = `
-          <h3>${item.name}</h3>
-          <p>Cantidad: ${item.quantity}</p>
-          <p>Precio unitario: S/ ${(item.price / 100).toFixed(2)}</p>
-          <p>Total línea: S/ ${(item.line_price / 100).toFixed(2)}</p>
-        `;
+        itemDiv.innerHTML = `<strong>${item.name}</strong><br>Cantidad: ${item.quantity}<br>Subtotal: S/ ${(item.line_price / 100).toFixed(2)}`;
         cartDiv.appendChild(itemDiv);
       });
-
-      const total = (payload.total_price / 100).toFixed(2);
-      document.getElementById('total').textContent = `Total: ${payload.currency} ${total}`;
+      document.getElementById('subtotal').textContent = `Subtotal: S/ ${(subtotal / 100).toFixed(2)}`;
     }
 
-    function rellenarFormulario(cliente) {
-      if (!cliente) return;
+    function calcularTotales() {
+      const metodo = document.querySelector('[name="shipping_method"]').value;
+      let envio = 0;
+      if (metodo === 'estandar') envio = 1000;
+      else if (metodo === 'express') envio = 2000;
+      else envio = 0;
+      document.getElementById('shipping-cost').textContent = `Costo de envío: S/ ${(envio / 100).toFixed(2)}`;
 
-      document.querySelector('[name="first_name"]').value = cliente.first_name || '';
-      document.querySelector('[name="last_name"]').value = cliente.last_name || '';
-      document.querySelector('[name="email"]').value = cliente.email || '';
-      document.querySelector('[name="phone"]').value = cliente.phone || '';
-
-      const addr = cliente.address || {};
-      document.querySelector('[name="address1"]').value = addr.address1 || '';
-      document.querySelector('[name="address2"]').value = addr.address2 || '';
-      document.querySelector('[name="city"]').value = addr.city || '';
-      document.querySelector('[name="province"]').value = addr.province || '';
-      document.querySelector('[name="zip"]').value = addr.zip || '';
-      document.querySelector('[name="country"]').value = addr.country || '';
+      const subtotalText = document.getElementById('subtotal').textContent;
+      const subtotal = parseFloat(subtotalText.replace(/[^0-9.]/g, '')) * 100;
+      const total = subtotal + envio;
+      document.getElementById('total').textContent = `Total: S/ ${(total / 100).toFixed(2)}`;
     }
 
-    function confirmarPedido(e) {
-      e.preventDefault();
-      const form = document.getElementById('checkout-form');
-      const formData = new FormData(form);
-      const cliente = Object.fromEntries(formData.entries());
+    document.addEventListener('DOMContentLoaded', () => {
+      payload = parseQueryData();
+      if (payload) {
+        renderCart(payload);
+        if (payload.customer) {
+          document.querySelector('[name="first_name"]').value = payload.customer.first_name || '';
+          document.querySelector('[name="last_name"]').value = payload.customer.last_name || '';
+          document.querySelector('[name="email"]').value = payload.customer.email || '';
+          document.querySelector('[name="phone"]').value = payload.customer.phone || '';
+          const addr = payload.customer.address || {};
+          document.querySelector('[name="address1"]').value = addr.address1 || '';
+          document.querySelector('[name="address2"]').value = addr.address2 || '';
+          document.querySelector('[name="city"]').value = addr.city || '';
+          document.querySelector('[name="province"]').value = addr.province || '';
+          document.querySelector('[name="zip"]').value = addr.zip || '';
+          document.querySelector('[name="country"]').value = addr.country || 'Perú';
+        }
+        calcularTotales();
+      }
 
-      const ordenCompleta = {
-        cliente,
-        carrito: payload
-      };
+      document.querySelector('[name="shipping_method"]').addEventListener('change', calcularTotales);
 
-      console.log('✅ Pedido confirmado:', ordenCompleta);
-      alert('Pedido confirmado. Información registrada en consola.');
-      // Aquí puedes hacer un fetch a tu backend para guardar o enviar a Izipay
-    }
-
-    const payload = parseQueryData();
-    if (payload) {
-      renderCart(payload);
-      rellenarFormulario(payload.customer);
-      document.getElementById('checkout-form').addEventListener('submit', confirmarPedido);
-    }
+      document.getElementById('checkout-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const cliente = Object.fromEntries(formData.entries());
+        const ordenCompleta = {
+          cliente,
+          carrito: payload
+        };
+        console.log('✅ Pedido confirmado:', ordenCompleta);
+        alert('Pedido confirmado. Información registrada en consola.');
+      });
+    });
   </script>
 </body>
 </html>
