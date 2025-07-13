@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Checkout Izipay</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+      background: #f9f9f9;
+    }
+
+    h1 {
+      color: #333;
+    }
+
+    .cart-item {
+      background: white;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .cart-item h3 {
+      margin: 0 0 0.5rem;
+    }
+
+    .total {
+      font-size: 1.2rem;
+      font-weight: bold;
+      margin-top: 2rem;
+    }
+
+    .pay-button {
+      margin-top: 2rem;
+      padding: 1rem 2rem;
+      background-color: #007bff;
+      color: white;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .pay-button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h1>Resumen del Pedido</h1>
+  <div id="cart"></div>
+  <div id="total" class="total"></div>
+  <button class="pay-button" onclick="pagar()">Pagar con Izipay</button>
+
+  <script>
+    function parseQueryData() {
+      const params = new URLSearchParams(window.location.search);
+      const data = params.get('data');
+      if (!data) {
+        document.getElementById('cart').innerHTML = '<p>No se encontraron datos del carrito.</p>';
+        return null;
+      }
+
+      try {
+        return JSON.parse(decodeURIComponent(data));
+      } catch (err) {
+        console.error('Error al parsear datos:', err);
+        return null;
+      }
+    }
+
+    function renderCart(payload) {
+      const cartDiv = document.getElementById('cart');
+      payload.items.forEach(item => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'cart-item';
+        itemDiv.innerHTML = `
+          <h3>${item.name}</h3>
+          <p>Cantidad: ${item.quantity}</p>
+          <p>Precio unitario: S/ ${(item.price / 100).toFixed(2)}</p>
+          <p>Total línea: S/ ${(item.line_price / 100).toFixed(2)}</p>
+        `;
+        cartDiv.appendChild(itemDiv);
+      });
+
+      const total = (payload.total_price / 100).toFixed(2);
+      document.getElementById('total').textContent = `Total: ${payload.currency} ${total}`;
+    }
+
+    function pagar() {
+      alert('Aquí redirigirías a la pasarela de pago de Izipay.');
+      // Aquí iría la redirección al link real generado por tu backend o integración con Izipay.
+    }
+
+    const payload = parseQueryData();
+    if (payload) {
+      renderCart(payload);
+    }
+  </script>
+</body>
+</html>
