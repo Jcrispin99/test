@@ -69,25 +69,44 @@
 
   <h2>Datos del Cliente</h2>
   <div class="form-section">
-    <form id="checkout-form">
-      <label>Nombre completo
-        <input type="text" name="nombre" required>
-      </label>
-      <label>Correo electrónico
-        <input type="email" name="email" required>
-      </label>
-      <label>Teléfono
-        <input type="tel" name="telefono" required>
-      </label>
-      <label>Dirección
-        <textarea name="direccion" rows="3" required></textarea>
-      </label>
-      <label>Nota adicional (opcional)
-        <textarea name="nota" rows="2"></textarea>
-      </label>
+<form id="checkout-form">
+  <h2>Datos del Cliente</h2>
+  <label>Nombres
+    <input type="text" name="first_name" required>
+  </label>
+  <label>Apellidos
+    <input type="text" name="last_name" required>
+  </label>
+  <label>Correo electrónico
+    <input type="email" name="email" required>
+  </label>
+  <label>Teléfono
+    <input type="tel" name="phone" required>
+  </label>
 
-      <button type="submit" class="pay-button">Confirmar Pedido</button>
-    </form>
+  <h2>Dirección de Envío</h2>
+  <label>Dirección
+    <input type="text" name="address1" required>
+  </label>
+  <label>Referencia / Interior
+    <input type="text" name="address2">
+  </label>
+  <label>Ciudad
+    <input type="text" name="city" required>
+  </label>
+  <label>Departamento / Región
+    <input type="text" name="province" required>
+  </label>
+  <label>Código postal
+    <input type="text" name="zip" required>
+  </label>
+  <label>País
+    <input type="text" name="country" required value="Perú">
+  </label>
+
+  <button type="submit" class="pay-button">Confirmar Pedido</button>
+</form>
+
   </div>
 
   <script>
