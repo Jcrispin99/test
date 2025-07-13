@@ -51,14 +51,41 @@
       border: 1px solid #ccc;
     }
     .cart-item {
-      margin-bottom: 10px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 15px;
       border-bottom: 1px solid #eee;
       padding-bottom: 10px;
+    }
+    .cart-item img {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 6px;
+    }
+    .cart-item-details {
+      flex: 1;
+    }
+    .discount-code {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .discount-code input {
+      flex: 1;
+    }
+    .discount-code button {
+      padding: 8px 16px;
+      border: none;
+      background: #ccc;
+      border-radius: 4px;
+      cursor: pointer;
     }
     .total {
       font-size: 18px;
       font-weight: bold;
-      margin-top: 20px;
+      margin-top: 10px;
     }
     .pay-button {
       width: 100%;
@@ -120,6 +147,12 @@
     <div class="summary-section">
       <h2>Resumen del Pedido</h2>
       <div id="cart"></div>
+
+      <div class="discount-code">
+        <input type="text" placeholder="Código de descuento" disabled>
+        <button disabled>Aplicar</button>
+      </div>
+
       <div class="total" id="subtotal"></div>
       <div class="total" id="shipping-cost"></div>
       <div class="total" id="total"></div>
@@ -147,7 +180,14 @@
         subtotal += item.line_price;
         const itemDiv = document.createElement('div');
         itemDiv.className = 'cart-item';
-        itemDiv.innerHTML = `<strong>${item.name}</strong><br>Cantidad: ${item.quantity}<br>Subtotal: S/ ${(item.line_price / 100).toFixed(2)}`;
+        itemDiv.innerHTML = `
+          <img src="${item.image || 'https://via.placeholder.com/60'}" alt="${item.name}">
+          <div class="cart-item-details">
+            <div><strong>${item.name}</strong></div>
+            <div>Cantidad: ${item.quantity}</div>
+          </div>
+          <div><strong>S/ ${(item.line_price / 100).toFixed(2)}</strong></div>
+        `;
         cartDiv.appendChild(itemDiv);
       });
       document.getElementById('subtotal').textContent = `Subtotal: S/ ${(subtotal / 100).toFixed(2)}`;
@@ -159,12 +199,13 @@
       if (metodo === 'estandar') envio = 1000;
       else if (metodo === 'express') envio = 2000;
       else envio = 0;
-      document.getElementById('shipping-cost').textContent = `Costo de envío: S/ ${(envio / 100).toFixed(2)}`;
+
+      document.getElementById('shipping-cost').textContent = `Costo de envío: ${envio === 0 ? 'GRATIS' : 'S/ ' + (envio / 100).toFixed(2)}`;
 
       const subtotalText = document.getElementById('subtotal').textContent;
       const subtotal = parseFloat(subtotalText.replace(/[^0-9.]/g, '')) * 100;
       const total = subtotal + envio;
-      document.getElementById('total').textContent = `Total: S/ ${(total / 100).toFixed(2)}`;
+      document.getElementById('total').textContent = `Total: PEN S/ ${(total / 100).toFixed(2)}`;
     }
 
     document.addEventListener('DOMContentLoaded', () => {
