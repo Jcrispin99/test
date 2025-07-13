@@ -1,617 +1,207 @@
+<!-- NUEVO TEMPLATE INTEGRADO DESDE SHOPIFY CON IMAGENES Y DATOS DINÁMICOS -->
 <!DOCTYPE html>
 <html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Checkout - Layout 3 Partes</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      color: #333;
-      line-height: 1.5;
-    }
-
-    /* Parte superior - Imagen con fondo beige/crema */
-    .header-section {
-      width: 100%;
-      height: 120px;
-      background: linear-gradient(135deg, #f4e4c1 0%, #e8d5b7 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .header-image {
-      height: 80px;
-      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80"><rect width="200" height="80" fill="%23d4af37"/><text x="100" y="45" text-anchor="middle" fill="white" font-family="Arial" font-size="16" font-weight="bold">TU LOGO</text></svg>') center/contain no-repeat;
-      width: 200px;
-    }
-
-    /* Container principal para las 2 mitades */
-    .main-container {
-      display: flex;
-      min-height: calc(100vh - 120px);
-    }
-
-    /* Mitad izquierda - Fondo blanco */
-    .left-section {
-      flex: 1;
-      background: #ffffff;
-      padding: 40px 60px;
-      overflow-y: auto;
-    }
-
-    /* Mitad derecha - Fondo gris muy claro */
-    .right-section {
-      flex: 1;
-      background: #fafafa;
-      padding: 40px 30px;
-      border-left: 1px solid #e1e8ed;
-      overflow-y: auto;
-    }
-
-    /* Estilos del formulario */
-    .breadcrumb {
-      margin-bottom: 20px;
-      font-size: 14px;
-      color: #737373;
-    }
-
-    .breadcrumb a {
-      color: #2e6da4;
-      text-decoration: none;
-    }
-
-    .section-title {
-      font-size: 18px;
-      font-weight: 500;
-      margin-bottom: 20px;
-      color: #333;
-    }
-
-    .form-group {
-      margin-bottom: 20px;
-    }
-
-    .form-row {
-      display: flex;
-      gap: 15px;
-    }
-
-    .form-row .form-group {
-      flex: 1;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-size: 14px;
-      font-weight: 400;
-      color: #333;
-    }
-
-    input[type="text"],
-    input[type="email"],
-    input[type="tel"],
-    select {
-      width: 100%;
-      padding: 12px 16px;
-      border: 1px solid #d9d9d9;
-      border-radius: 4px;
-      font-size: 14px;
-      background: white;
-      transition: border-color 0.2s;
-    }
-
-    input:focus,
-    select:focus {
-      outline: none;
-      border-color: #2e6da4;
-      box-shadow: 0 0 0 2px rgba(46, 109, 164, 0.1);
-    }
-
-    .checkbox-group {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      margin: 20px 0;
-    }
-
-    .checkbox-group input[type="checkbox"] {
-      margin-top: 2px;
-    }
-
-    .checkbox-group label {
-      margin: 0;
-      font-size: 14px;
-      line-height: 1.4;
-    }
-
-    /* Opciones de entrega */
-    .delivery-options {
-      border: 1px solid #d9d9d9;
-      border-radius: 4px;
-      margin-bottom: 20px;
-      background: white;
-    }
-
-    .delivery-option {
-      padding: 16px;
-      border-bottom: 1px solid #d9d9d9;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
-
-    .delivery-option:last-child {
-      border-bottom: none;
-    }
-
-    .delivery-option:hover {
-      background-color: #f8f9fa;
-    }
-
-    .delivery-option.selected {
-      background-color: #f0f8ff;
-      border-color: #2e6da4;
-    }
-
-    .delivery-option input[type="radio"] {
-      margin: 0;
-    }
-
-    .delivery-info {
-      flex: 1;
-    }
-
-    .delivery-title {
-      font-weight: 500;
-      margin-bottom: 4px;
-    }
-
-    .delivery-description {
-      font-size: 13px;
-      color: #737373;
-    }
-
-    .delivery-price {
-      font-weight: 500;
-    }
-
-    /* Métodos de pago */
-    .payment-methods {
-      border: 1px solid #d9d9d9;
-      border-radius: 4px;
-      margin-bottom: 20px;
-      background: white;
-    }
-
-    .payment-method {
-      padding: 16px;
-      border-bottom: 1px solid #d9d9d9;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      cursor: pointer;
-    }
-
-    .payment-method:last-child {
-      border-bottom: none;
-    }
-
-    .payment-icons {
-      display: flex;
-      gap: 8px;
-      margin-left: auto;
-    }
-
-    .payment-icon {
-      width: 32px;
-      height: 20px;
-      background: #f0f0f0;
-      border-radius: 2px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 10px;
-      font-weight: bold;
-    }
-
-    .visa { background: #1a1f71; color: white; }
-    .mastercard { background: #eb001b; color: white; }
-    .amex { background: #006fcf; color: white; }
-    .diners { background: #0079be; color: white; }
-
-    /* Estilos del resumen */
-    .order-summary {
-      background: white;
-      border-radius: 4px;
-      padding: 20px;
-      margin-bottom: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-
-    .product-item {
-      display: flex;
-      gap: 15px;
-      margin-bottom: 20px;
-      padding-bottom: 20px;
-      border-bottom: 1px solid #e1e8ed;
-    }
-
-    .product-item:last-child {
-      border-bottom: none;
-      margin-bottom: 0;
-      padding-bottom: 0;
-    }
-
-    .product-image {
-      width: 60px;
-      height: 60px;
-      background: #f0f0f0;
-      border-radius: 4px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .product-image img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .quantity-badge {
-      position: absolute;
-      top: -8px;
-      right: -8px;
-      background: #737373;
-      color: white;
-      border-radius: 50%;
-      width: 20px;
-      height: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      font-weight: 500;
-    }
-
-    .product-details {
-      flex: 1;
-    }
-
-    .product-name {
-      font-weight: 500;
-      margin-bottom: 4px;
-      font-size: 14px;
-    }
-
-    .product-variant {
-      font-size: 13px;
-      color: #737373;
-    }
-
-    .product-price {
-      font-weight: 500;
-      font-size: 14px;
-    }
-
-    .discount-code {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-
-    .discount-input {
-      flex: 1;
-      padding: 12px 16px;
-      border: 1px solid #d9d9d9;
-      border-radius: 4px;
-      font-size: 14px;
-      background: white;
-    }
-
-    .discount-button {
-      padding: 12px 20px;
-      background: #f0f0f0;
-      border: 1px solid #d9d9d9;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 500;
-    }
-
-    .order-totals {
-      border-top: 1px solid #e1e8ed;
-      padding-top: 15px;
-    }
-
-    .total-line {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 10px;
-      font-size: 14px;
-    }
-
-    .total-line.final {
-      font-size: 18px;
-      font-weight: 600;
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid #e1e8ed;
-    }
-
-    .continue-button {
-      width: 100%;
-      padding: 16px;
-      background: #2e6da4;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      font-size: 16px;
-      font-weight: 500;
-      cursor: pointer;
-      margin-top: 20px;
-      transition: background-color 0.2s;
-    }
-
-    .continue-button:hover {
-      background: #1e5a96;
-    }
-
-    .payment-info {
-      background: #f8f9fa;
-      padding: 15px;
-      border-radius: 4px;
-      margin: 20px 0;
-      font-size: 13px;
-      line-height: 1.4;
-      border-left: 4px solid #2e6da4;
-    }
-
-    /* Responsive */
-    @media (max-width: 768px) {
-      .main-container {
-        flex-direction: column;
-      }
-      
-      .right-section {
-        order: -1;
-        border-left: none;
-        border-bottom: 1px solid #e1e8ed;
-      }
-      
-      .left-section,
-      .right-section {
-        padding: 20px 30px;
-      }
-      
-      .header-section {
-        height: 80px;
-      }
-      
-      .header-image {
-        height: 60px;
-        width: 150px;
-      }
-    }
-  </style>
-</head>
-<body>
-  <!-- Parte superior - Imagen con fondo beige/crema -->
-  <div class="header-section">
-    <div class="header-image"></div>
-  </div>
-
-  <!-- Container principal con 2 mitades -->
-  <div class="main-container">
-    <!-- Mitad izquierda - Fondo blanco -->
-    <div class="left-section">
-      <div class="breadcrumb">
-        <a href="#">Carrito</a> > <span>Información</span> > Envío > Pago
-      </div>
-
-      <form id="checkout-form">
-        <div class="section-title">Cuenta</div>
-        <div class="form-group">
-          <input type="email" placeholder="j9crispin@gmail.com" value="j9crispin@gmail.com" readonly>
-        </div>
-
-        <div class="section-title">Entrega</div>
-        
-        <div class="form-row">
-          <div class="form-group">
-            <input type="text" placeholder="Nombre" required>
-          </div>
-          <div class="form-group">
-            <input type="text" placeholder="Apellido" required>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <input type="text" placeholder="Dirección" required>
-        </div>
-
-        <div class="form-group">
-          <input type="text" placeholder="Apartamento, suite, etc. (opcional)">
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <input type="text" placeholder="Ciudad" required>
-          </div>
-          <div class="form-group">
-            <select required>
-              <option value="">Seleccionar región</option>
-              <option value="lima">Lima</option>
-              <option value="arequipa">Arequipa</option>
-              <option value="cusco">Cusco</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <input type="text" placeholder="Código postal" required>
-          </div>
-        </div>
-
-        <div class="checkbox-group">
-          <input type="checkbox" id="save-info">
-          <label for="save-info">Guardar esta información para la próxima vez</label>
-        </div>
-
-        <div class="section-title">Método de envío</div>
-        
-        <div class="delivery-options">
-          <div class="delivery-option selected">
-            <input type="radio" name="delivery" value="pickup" checked>
-            <div class="delivery-info">
-              <div class="delivery-title">Retiro en tienda</div>
-            </div>
-            <div class="delivery-price">GRATIS</div>
-          </div>
-        </div>
-
-        <div class="section-title">Sucursales de tienda</div>
-        <p style="font-size: 14px; color: #737373; margin-bottom: 15px;">Hay 2 tiendas con existencias cerca de tu ubicación.</p>
-        
-        <div class="delivery-options">
-          <div class="delivery-option selected">
-            <input type="radio" name="store" value="huanuco" checked>
-            <div class="delivery-info">
-              <div class="delivery-title">Kiosk Store - Huánuco (0.4 km)</div>
-              <div class="delivery-description">Jirón Abtao 1101, Huánuco, PE 10001</div>
-              <div class="delivery-description">Normalmente está listo en 4 horas</div>
-            </div>
-            <div class="delivery-price">GRATIS</div>
-          </div>
-          
-          <div class="delivery-option">
-            <input type="radio" name="store" value="tingo">
-            <div class="delivery-info">
-              <div class="delivery-title">Kiosk Store - Tingo María (75.1 km)</div>
-              <div class="delivery-description">Avenida Tito Jaime Fernández, Tingo María, PE</div>
-              <div class="delivery-description">Normalmente está listo en 4 horas</div>
-            </div>
-            <div class="delivery-price">GRATIS</div>
-          </div>
-        </div>
-
-        <div class="section-title">Pago</div>
-        <p style="font-size: 14px; color: #737373; margin-bottom: 15px;">Todas las transacciones son seguras y están encriptadas.</p>
-        
-        <div class="payment-methods">
-          <div class="payment-method">
-            <input type="radio" name="payment" value="card" checked>
-            <label>Pago seguro con tarjeta, efectivo y transferencia</label>
-            <div class="payment-icons">
-              <div class="payment-icon visa">VISA</div>
-              <div class="payment-icon mastercard">MC</div>
-              <div class="payment-icon amex">AMEX</div>
-              <div class="payment-icon diners">DC</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="payment-info">
-          📱 <strong>Realiza tu pago fácil y rápido con Yape o Plin</strong><br>
-          📞 Abre tu App de Yape o Plin<br>
-          📱 Envía el pago al número: <strong>919 499 627</strong><br>
-          🏪 Nombre de la empresa: <strong>Kiosk Store S.A.C</strong><br>
-          📷 Toma captura de tu pantalla 📱<br>
-          📧 Envíala a nuestro WhatsApp: <strong>948 288 725</strong>, junto con tu Número de Pedido 📱<br><br>
-          ✅ Una vez confirmado el pago, procesaremos tu pedido de inmediato. ¡Gracias por tu confianza! 🙏
-        </div>
-
-        <button type="submit" class="continue-button">Completar pedido</button>
-      </form>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Checkout Personalizado</title>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body>
+    <div class="header-section">
+      <div class="header-image"></div>
     </div>
 
-    <!-- Mitad derecha - Fondo gris muy claro -->
-    <div class="right-section">
-      <div class="order-summary">
-        <div class="product-item">
-          <div class="product-image">
-            <img src="https://via.placeholder.com/60x60/f0f0f0/999?text=Producto" alt="Producto">
-            <div class="quantity-badge">1</div>
-          </div>
-          <div class="product-details">
-            <div class="product-name">Desmaquillante Suave y Efectivo</div>
-            <div class="product-variant">BIOAQUA - Limpieza Profunda</div>
-          </div>
-          <div class="product-price">S/ 14.25</div>
+    <div class="main-container">
+      <div class="left-section">
+        <div class="breadcrumb">
+          <a href="#">Carrito</a> > <span>Información</span> > Envío > Pago
         </div>
+
+        <form id="checkout-form">
+          <div class="section-title">Cuenta</div>
+          <div class="form-group">
+            <input
+              type="email"
+              name="email"
+              placeholder="Correo electrónico"
+              required
+            />
+          </div>
+
+          <div class="section-title">Entrega</div>
+          <div class="form-row">
+            <div class="form-group">
+              <input
+                type="text"
+                name="first_name"
+                placeholder="Nombre"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <input
+                type="text"
+                name="last_name"
+                placeholder="Apellido"
+                required
+              />
+            </div>
+          </div>
+          <div class="form-group">
+            <input
+              type="text"
+              name="address1"
+              placeholder="Dirección"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <input
+              type="text"
+              name="address2"
+              placeholder="Apartamento, suite, etc. (opcional)"
+            />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <input type="text" name="city" placeholder="Ciudad" required />
+            </div>
+            <div class="form-group">
+              <select name="province" required>
+                <option value="">Seleccionar región</option>
+                <option value="lima">Lima</option>
+                <option value="arequipa">Arequipa</option>
+                <option value="cusco">Cusco</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <input
+                type="text"
+                name="zip"
+                placeholder="Código postal"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="checkbox-group">
+            <input type="checkbox" id="save-info" />
+            <label for="save-info"
+              >Guardar esta información para la próxima vez</label
+            >
+          </div>
+
+          <div class="section-title">Método de envío</div>
+          <div class="delivery-options">
+            <div class="delivery-option selected">
+              <input
+                type="radio"
+                name="shipping_method"
+                value="pickup"
+                checked
+              />
+              <div class="delivery-info">
+                <div class="delivery-title">Retiro en tienda</div>
+              </div>
+              <div class="delivery-price">GRATIS</div>
+            </div>
+          </div>
+
+          <div class="section-title">Pago</div>
+          <div class="payment-methods">
+            <div class="payment-method">
+              <input type="radio" name="payment" value="card" checked />
+              <label>Pago seguro con tarjeta, efectivo y transferencia</label>
+            </div>
+          </div>
+
+          <div class="payment-info">
+            📱 <strong>Realiza tu pago fácil y rápido con Yape o Plin</strong
+            ><br />
+            📞 Abre tu App de Yape o Plin<br />
+            📱 Envía el pago al número: <strong>919 499 627</strong><br />
+            🏪 Nombre de la empresa: <strong>Kiosk Store S.A.C</strong><br />
+            📷 Toma captura de tu pantalla 📱<br />
+            📧 Envíala a nuestro WhatsApp: <strong>948 288 725</strong
+            ><br /><br />
+            ✅ Una vez confirmado el pago, procesaremos tu pedido de inmediato.
+          </div>
+
+          <button type="submit" class="continue-button">
+            Completar pedido
+          </button>
+        </form>
       </div>
 
-      <div class="discount-code">
-        <input type="text" class="discount-input" placeholder="Código de descuento">
-        <button type="button" class="discount-button">Aplicar</button>
-      </div>
+      <div class="right-section">
+        <div class="order-summary" id="cart"></div>
 
-      <div class="order-totals">
-        <div class="total-line">
-          <span>Subtotal</span>
-          <span>S/ 14.25</span>
+        <div class="discount-code">
+          <input
+            type="text"
+            class="discount-input"
+            placeholder="Código de descuento"
+          />
+          <button type="button" class="discount-button">Aplicar</button>
         </div>
-        <div class="total-line">
-          <span>Retiro en tienda</span>
-          <span>GRATIS</span>
-        </div>
-        <div class="total-line final">
-          <span>Total</span>
-          <span>PEN S/ 14.25</span>
+
+        <div class="order-totals">
+          <div class="total-line">
+            <span>Subtotal</span><span id="subtotal">S/ 0.00</span>
+          </div>
+          <div class="total-line">
+            <span>Envío</span><span id="shipping-cost">GRATIS</span>
+          </div>
+          <div class="total-line final">
+            <span>Total</span><span id="total">PEN S/ 0.00</span>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <script>
-    // Funcionalidad para las opciones de entrega
-    document.querySelectorAll('.delivery-option').forEach(option => {
-      option.addEventListener('click', function() {
-        // Remover selección anterior
-        this.parentNode.querySelectorAll('.delivery-option').forEach(opt => {
-          opt.classList.remove('selected');
-          opt.querySelector('input[type="radio"]').checked = false;
+    <script>
+      const payload = JSON.parse(
+        decodeURIComponent(
+          new URLSearchParams(window.location.search).get("data") || "{}"
+        )
+      );
+
+      function renderCartItems() {
+        const cartDiv = document.getElementById("cart");
+        let subtotal = 0;
+        if (!payload || !payload.items) return;
+
+        payload.items.forEach((item) => {
+          subtotal += item.line_price;
+          const itemHTML = `
+          <div class="product-item">
+            <div class="product-image">
+              <img src="${
+                item.image || "https://via.placeholder.com/60x60"
+              }" alt="${item.name}" />
+              <div class="quantity-badge">${item.quantity}</div>
+            </div>
+            <div class="product-details">
+              <div class="product-name">${item.name}</div>
+              <div class="product-variant">${item.sku || ""}</div>
+            </div>
+            <div class="product-price">S/ ${(item.line_price / 100).toFixed(
+              2
+            )}</div>
+          </div>`;
+          cartDiv.insertAdjacentHTML("beforeend", itemHTML);
         });
-        
-        // Seleccionar actual
-        this.classList.add('selected');
-        this.querySelector('input[type="radio"]').checked = true;
-      });
-    });
 
-    // Funcionalidad para métodos de pago
-    document.querySelectorAll('.payment-method').forEach(method => {
-      method.addEventListener('click', function() {
-        document.querySelectorAll('.payment-method input[type="radio"]').forEach(radio => {
-          radio.checked = false;
-        });
-        this.querySelector('input[type="radio"]').checked = true;
-      });
-    });
-
-    // Manejo del formulario
-    document.getElementById('checkout-form').addEventListener('submit', function(e) {
-      e.preventDefault();
-      alert('¡Pedido completado! (Esta es una demostración)');
-    });
-
-    // Funcionalidad del código de descuento
-    document.querySelector('.discount-button').addEventListener('click', function() {
-      const code = document.querySelector('.discount-input').value;
-      if (code) {
-        alert(`Código "${code}" aplicado (demostración)`);
+        document.getElementById("subtotal").textContent = `S/ ${(
+          subtotal / 100
+        ).toFixed(2)}`;
+        document.getElementById("total").textContent = `PEN S/ ${(
+          subtotal / 100
+        ).toFixed(2)}`;
       }
-    });
-  </script>
-</body>
+
+      renderCartItems();
+    </script>
+  </body>
 </html>
