@@ -3,18 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Checkout Personalizado</title>
+  <title>Checkout Izipay</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       padding: 2rem;
       background: #f9f9f9;
     }
-
     h1, h2 {
       color: #333;
     }
-
     .cart-item, .form-section {
       background: white;
       padding: 1rem;
@@ -22,16 +20,10 @@
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-
-    .cart-item h3 {
-      margin: 0 0 0.5rem;
-    }
-
     label {
       display: block;
       margin-top: 10px;
     }
-
     input, textarea {
       width: 100%;
       padding: 8px;
@@ -39,13 +31,11 @@
       border-radius: 4px;
       border: 1px solid #ccc;
     }
-
     .total {
       font-size: 1.2rem;
       font-weight: bold;
       margin-top: 2rem;
     }
-
     .pay-button {
       margin-top: 2rem;
       padding: 1rem 2rem;
@@ -56,7 +46,6 @@
       border-radius: 5px;
       cursor: pointer;
     }
-
     .pay-button:hover {
       background-color: #0056b3;
     }
@@ -69,49 +58,45 @@
 
   <h2>Datos del Cliente</h2>
   <div class="form-section">
-<form id="checkout-form">
-  <h2>Datos del Cliente</h2>
-  <label>Nombres
-    <input type="text" name="first_name" required>
-  </label>
-  <label>Apellidos
-    <input type="text" name="last_name" required>
-  </label>
-  <label>Correo electrónico
-    <input type="email" name="email" required>
-  </label>
-  <label>Teléfono
-    <input type="tel" name="phone" required>
-  </label>
+    <form id="checkout-form">
+      <label>Nombres
+        <input type="text" name="first_name" required>
+      </label>
+      <label>Apellidos
+        <input type="text" name="last_name" required>
+      </label>
+      <label>Correo electrónico
+        <input type="email" name="email" required>
+      </label>
+      <label>Teléfono
+        <input type="tel" name="phone" required>
+      </label>
 
-  <h2>Dirección de Envío</h2>
-  <label>Dirección
-    <input type="text" name="address1" required>
-  </label>
-  <label>Referencia / Interior
-    <input type="text" name="address2">
-  </label>
-  <label>Ciudad
-    <input type="text" name="city" required>
-  </label>
-  <label>Departamento / Región
-    <input type="text" name="province" required>
-  </label>
-  <label>Código postal
-    <input type="text" name="zip" required>
-  </label>
-  <label>País
-    <input type="text" name="country" required value="Perú">
-  </label>
+      <h2>Dirección de Envío</h2>
+      <label>Dirección
+        <input type="text" name="address1" required>
+      </label>
+      <label>Referencia / Interior
+        <input type="text" name="address2">
+      </label>
+      <label>Ciudad
+        <input type="text" name="city" required>
+      </label>
+      <label>Departamento / Región
+        <input type="text" name="province" required>
+      </label>
+      <label>Código postal
+        <input type="text" name="zip" required>
+      </label>
+      <label>País
+        <input type="text" name="country" required value="Perú">
+      </label>
 
-  <button type="submit" class="pay-button">Confirmar Pedido</button>
-</form>
-
+      <button type="submit" class="pay-button">Confirmar Pedido</button>
+    </form>
   </div>
 
   <script>
-    let payload = null;
-
     function parseQueryData() {
       const params = new URLSearchParams(window.location.search);
       const data = params.get('data');
@@ -146,6 +131,23 @@
       document.getElementById('total').textContent = `Total: ${payload.currency} ${total}`;
     }
 
+    function rellenarFormulario(cliente) {
+      if (!cliente) return;
+
+      document.querySelector('[name="first_name"]').value = cliente.first_name || '';
+      document.querySelector('[name="last_name"]').value = cliente.last_name || '';
+      document.querySelector('[name="email"]').value = cliente.email || '';
+      document.querySelector('[name="phone"]').value = cliente.phone || '';
+
+      const addr = cliente.address || {};
+      document.querySelector('[name="address1"]').value = addr.address1 || '';
+      document.querySelector('[name="address2"]').value = addr.address2 || '';
+      document.querySelector('[name="city"]').value = addr.city || '';
+      document.querySelector('[name="province"]').value = addr.province || '';
+      document.querySelector('[name="zip"]').value = addr.zip || '';
+      document.querySelector('[name="country"]').value = addr.country || '';
+    }
+
     function confirmarPedido(e) {
       e.preventDefault();
       const form = document.getElementById('checkout-form');
@@ -157,18 +159,15 @@
         carrito: payload
       };
 
-      console.log('Orden confirmada:', ordenCompleta);
-
-      alert('Pedido confirmado. Información registrada en consola (aún sin backend).');
-
-      // Aquí podrías enviar los datos a Laravel o Izipay
-      // fetch('/guardar-orden', { method: 'POST', body: JSON.stringify(ordenCompleta) })
+      console.log('✅ Pedido confirmado:', ordenCompleta);
+      alert('Pedido confirmado. Información registrada en consola.');
+      // Aquí puedes hacer un fetch a tu backend para guardar o enviar a Izipay
     }
 
-    // Ejecutar al cargar
-    payload = parseQueryData();
+    const payload = parseQueryData();
     if (payload) {
       renderCart(payload);
+      rellenarFormulario(payload.customer);
       document.getElementById('checkout-form').addEventListener('submit', confirmarPedido);
     }
   </script>
