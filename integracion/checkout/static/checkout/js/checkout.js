@@ -30,12 +30,12 @@ function renderCartItems() {
     cartDiv.insertAdjacentHTML("beforeend", itemHTML);
   });
 
-  document.getElementById("subtotal").textContent = `S/ ${(
-    subtotal / 100
-  ).toFixed(2)}`;
-  document.getElementById("total").textContent = `PEN S/ ${(
-    subtotal / 100
-  ).toFixed(2)}`;
+  document.getElementById("subtotal").textContent = `S/ ${
+    (subtotal / 100).toFixed(2)
+  }`;
+  document.getElementById("total").textContent = `PEN S/ ${
+    (subtotal / 100).toFixed(2)
+  }`;
 }
 
 function prefillFormData() {
