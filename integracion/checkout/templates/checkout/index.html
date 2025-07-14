@@ -1,0 +1,165 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Checkout Personalizado</title>
+    <link rel="stylesheet" href="{% static 'checkout/css/index.css' %}" />
+  </head>
+  <body>
+    <div class="header-section">
+      <div class="header-image"></div>
+    </div>
+
+    <div class="main-container">
+      <!-- Sección izquierda: formulario -->
+      <div class="left-section">
+        <form id="checkout-form" method="POST">
+          {% csrf_token %}
+          <div class="section-title">Cuenta</div>
+          <div class="form-group">
+            <input
+              type="email"
+              name="email"
+              placeholder="Correo electrónico"
+              required
+            />
+          </div>
+
+          <div class="section-title">Entrega</div>
+          <div class="form-row">
+            <div class="form-group">
+              <input
+                type="text"
+                name="first_name"
+                placeholder="Nombre"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <input
+                type="text"
+                name="last_name"
+                placeholder="Apellido"
+                required
+              />
+            </div>
+          </div>
+          <div class="form-group">
+            <input
+              type="text"
+              name="address1"
+              placeholder="Dirección"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <input
+              type="text"
+              name="address2"
+              placeholder="Apartamento, suite, etc. (opcional)"
+            />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <input type="text" name="city" placeholder="Ciudad" required />
+            </div>
+            <div class="form-group">
+              <select name="province" required>
+                <option value="">Seleccionar región</option>
+                <option value="lima">Lima</option>
+                <option value="arequipa">Arequipa</option>
+                <option value="cusco">Cusco</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <input
+                type="text"
+                name="zip"
+                placeholder="Código postal"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="checkbox-group">
+            <input type="checkbox" id="save-info" />
+            <label for="save-info"
+              >Guardar esta información para la próxima vez</label
+            >
+          </div>
+
+          <div class="section-title">Método de envío</div>
+          <div class="delivery-options">
+            <div class="delivery-option selected">
+              <input
+                type="radio"
+                name="shipping_method"
+                value="pickup"
+                checked
+              />
+              <div class="delivery-info">
+                <div class="delivery-title">Retiro en tienda</div>
+              </div>
+              <div class="delivery-price">GRATIS</div>
+            </div>
+          </div>
+
+          <div class="section-title">Pago</div>
+          <div class="payment-methods">
+            <div class="payment-method">
+              <input type="radio" name="payment" value="card" checked />
+              <label>Pago seguro con tarjeta, efectivo y transferencia</label>
+            </div>
+          </div>
+
+          <div class="payment-info">
+            📱 <strong>Realiza tu pago fácil y rápido con Yape o Plin</strong
+            ><br />
+            📞 Abre tu App de Yape o Plin<br />
+            📱 Envía el pago al número: <strong>919 499 627</strong><br />
+            🏪 Nombre de la empresa: <strong>Kiosk Store S.A.C</strong><br />
+            📷 Toma captura de tu pantalla 📱<br />
+            📧 Envíala a nuestro WhatsApp: <strong>948 288 725</strong
+            ><br /><br />
+            ✅ Una vez confirmado el pago, procesaremos tu pedido de inmediato.
+          </div>
+
+          <button type="submit" class="continue-button">
+            Completar pedido
+          </button>
+        </form>
+      </div>
+
+      <!-- Sección derecha: resumen del pedido -->
+      <div class="right-section">
+        <div class="order-summary" id="cart"></div>
+
+        <div class="discount-code">
+          <input
+            type="text"
+            class="discount-input"
+            placeholder="Código de descuento"
+          />
+          <button type="button" class="discount-button">Aplicar</button>
+        </div>
+
+        <div class="order-totals">
+          <div class="total-line">
+            <span>Subtotal</span><span id="subtotal">S/ 0.00</span>
+          </div>
+          <div class="total-line">
+            <span>Envío</span><span id="shipping-cost">GRATIS</span>
+          </div>
+          <div class="total-line final">
+            <span>Total</span><span id="total">PEN S/ 0.00</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Script separado -->
+    <script src="{% static 'checkout/js/checkout.js' %}"></script>
+  </body>
+</html>
