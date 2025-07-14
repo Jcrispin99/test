@@ -47,6 +47,16 @@ def send_to_shopify(data, credentials):
     
     url = f"https://{credentials.store_name}.myshopify.com/admin/api/2023-10/orders.json"
     
+    # ✅ Mejorar el mapeo de line_items para Shopify
+    line_items = []
+    for item in data.get('items', []):
+        line_items.append({
+            'title': item.get('name', ''),
+            'price': str(item.get('price', 0) / 100),  # Convertir centavos a soles
+            'quantity': item.get('quantity', 1),
+            'sku': item.get('sku', ''),
+        })
+    
     order_data = {
         'order': {
             'email': data.get('email'),
@@ -54,20 +64,24 @@ def send_to_shopify(data, credentials):
                 'first_name': data.get('first_name'),
                 'last_name': data.get('last_name'),
                 'address1': data.get('address1'),
+                'address2': data.get('address2', ''),
                 'city': data.get('city'),
                 'province': data.get('province'),
-                'zip': data.get('zip')
+                'zip': data.get('zip'),
+                'country': 'PE'  # ✅ Agregar país
             },
-            'line_items': data.get('items', []),
-            'financial_status': 'pending'
+            'line_items': line_items,
+            'financial_status': 'pending',
+            'currency': 'PEN'  # ✅ Especificar moneda
         }
     }
     
     try:
         response = requests.post(url, json=order_data, headers=headers)
+        response.raise_for_status()  # ✅ Lanzar excepción si hay error HTTP
         return response.json()
-    except Exception as e:
-        return {'error': str(e)}
+    except requests.exceptions.RequestException as e:
+        return {'error': f'Error de Shopify: {str(e)}'}
 
 def send_to_other_service(data):
     """Envía a otro servicio (ej: Izipay)"""

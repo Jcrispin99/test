@@ -19,6 +19,6 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('checkout.urls')),  # 🎯 PÁGINA PRINCIPAL - Checkout en la raíz
-    path('api/checkout/', include('checkout.urls')),  # Mantener para la API
+    path('', include('checkout.urls')),  # Checkout en la raíz
+    path('checkout/', include('checkout.urls')),  # API duplicada
 ]

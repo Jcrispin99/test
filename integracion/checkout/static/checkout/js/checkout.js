@@ -38,8 +38,32 @@ function renderCartItems() {
   ).toFixed(2)}`;
 }
 
+function prefillFormData() {
+  // Prellenar email si viene en los datos de la URL
+  if (payload && payload.email) {
+    const emailInput = document.querySelector('input[name="email"]');
+    if (emailInput) {
+      emailInput.value = payload.email;
+    }
+  }
+
+  // También puedes prellenar otros campos si vienen en la URL
+  if (payload && payload.customer) {
+    const firstNameInput = document.querySelector('input[name="first_name"]');
+    const lastNameInput = document.querySelector('input[name="last_name"]');
+
+    if (firstNameInput && payload.customer.first_name) {
+      firstNameInput.value = payload.customer.first_name;
+    }
+    if (lastNameInput && payload.customer.last_name) {
+      lastNameInput.value = payload.customer.last_name;
+    }
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   renderCartItems();
+  prefillFormData();
 
   document
     .getElementById("checkout-form")
@@ -49,7 +73,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const formData = new FormData(this);
       const data = Object.fromEntries(formData.entries());
 
-      // ✅ Forzamos la captura del correo electrónico manualmente
       data.email = document.querySelector('[name="email"]')?.value || "";
       data.items = payload.items || [];
 
@@ -59,7 +82,8 @@ document.addEventListener("DOMContentLoaded", () => {
       submitBtn.disabled = true;
 
       try {
-        const response = await fetch("/api/checkout/process/", {
+        const response = await fetch("/checkout/process/", {
+          // ✅ URL corregida
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -72,6 +96,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const result = await response.json();
         if (result.success) {
           alert("¡Pedido procesado exitosamente!");
+          // ✅ Limpiar carrito después del éxito
+          clearCart();
+          // ✅ Opcional: redirigir a página de confirmación
+          // window.location.href = '/checkout/success/';
         } else {
           alert("Error: " + (result.error || "Error desconocido"));
         }
@@ -84,3 +112,22 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 });
+
+// ✅ Nueva función para limpiar carrito
+function clearCart() {
+  // Limpiar el carrito visual
+  const cartDiv = document.getElementById("cart");
+  cartDiv.innerHTML = "";
+
+  // Resetear totales
+  document.getElementById("subtotal").textContent = "S/ 0.00";
+  document.getElementById("total").textContent = "PEN S/ 0.00";
+
+  // Limpiar datos del payload
+  payload.items = [];
+
+  // Opcional: actualizar URL para remover parámetros del carrito
+  const url = new URL(window.location);
+  url.searchParams.delete("data");
+  window.history.replaceState({}, document.title, url.pathname);
+}
