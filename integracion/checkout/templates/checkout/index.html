@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Checkout Personalizado</title>
     <link rel="stylesheet" href="{% static 'checkout/css/index.css' %}" />
+
+    <!-- SDK de Izipay -->
+    <script src="https://static.micuentaweb.pe/static/js/krypton-client/V4/js/krypton-client.min.js"></script>
   </head>
   <body>
     <div class="header-section">
@@ -160,6 +163,14 @@
     </div>
 
     <!-- Script separado -->
-    <script src="{% static 'checkout/js/checkout.js' %}"></script>
+    <!-- Reemplazar esta línea -->
+    <!-- <script src="{% static 'checkout/js/checkout.js' %}"></script> -->
+
+    <!-- Con estos archivos en orden -->
+    <!-- Scripts separados -->
+    <script src="{% static 'checkout/js/shopify-handler.js' %}"></script>
+    <script src="{% static 'checkout/js/izipay-handler.js' %}"></script>
+    <script src="{% static 'checkout/js/ui-manager.js' %}"></script>
+    <script src="{% static 'checkout/js/checkout-controller.js' %}"></script>
   </body>
 </html>

@@ -31,6 +31,12 @@ ALLOWED_HOSTS = ['*']
 # O especificar IPs específicas
 # ALLOWED_HOSTS = ['tu-ip-publica.com', '192.168.1.100']
 
+# --- INICIO DE LA SOLUCIÓN ---
+# Añade la URL de ngrok a los orígenes de confianza para las peticiones seguras (HTTPS)
+# ¡Recuerda! La URL de ngrok cambia cada vez que lo reinicias si usas la versión gratuita.
+CSRF_TRUSTED_ORIGINS = ['https://4e2fb25dceae.ngrok-free.app']
+# --- FIN DE LA SOLUCIÓN ---
+
 
 # Application definition
 

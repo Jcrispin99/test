@@ -21,4 +21,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('checkout.urls')),  # Checkout en la raíz
     path('checkout/', include('checkout.urls')),  # API duplicada
+    path('izipay/', include('izipay.urls')),
 ]
