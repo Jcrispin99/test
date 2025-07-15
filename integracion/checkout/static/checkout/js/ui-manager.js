@@ -1,8 +1,9 @@
-// Manejo de la interfaz de usuario
 class UIManager {
   constructor() {
-    console.log('🎨 [UIManager] Inicializando UIManager...');
+    this.currentSubtotal = 0;
     this.initializeElements();
+    this.initializeDeliveryToggle();
+    this.setupEventListeners();
   }
 
   initializeElements() {
@@ -12,20 +13,14 @@ class UIManager {
     this.form = document.getElementById("checkout-form");
     this.submitButton = this.form?.querySelector('button[type="submit"]');
     this.originalButtonText =
-      this.submitButton?.textContent || "Completar pedido";
+    this.submitButton?.textContent || "Completar pedido";
+  }
 
-    console.log('🎨 [UIManager] Elementos encontrados:');
-    console.log('  - cartElement:', this.cartElement);
-    console.log('  - subtotalElement:', this.subtotalElement);
-    console.log('  - totalElement:', this.totalElement);
-    console.log('  - form:', this.form);
-    console.log('  - submitButton:', this.submitButton);
+  initializeDeliveryToggle() {
+    this.deliveryToggle = new DeliveryToggle();
   }
 
   renderCartItems(items) {
-    console.log('🎨 [UIManager] renderCartItems llamado con:', items);
-    console.log('🎨 [UIManager] cartElement actual:', this.cartElement);
-    
     if (!this.cartElement) {
       console.error('❌ [UIManager] cartElement no encontrado! Reintentando...');
       this.initializeElements();
@@ -42,19 +37,15 @@ class UIManager {
 
     let subtotal = 0;
     this.cartElement.innerHTML = "";
-    console.log('🎨 [UIManager] Cart limpiado, iniciando renderizado...');
 
     items.forEach((item, index) => {
-      console.log(`🎨 [UIManager] Procesando item ${index + 1}:`, item);
       subtotal += item.line_price;
       const itemHTML = this.createItemHTML(item);
-      console.log(`🎨 [UIManager] HTML generado para item ${index + 1}:`, itemHTML);
       this.cartElement.insertAdjacentHTML("beforeend", itemHTML);
     });
 
-    console.log('🎨 [UIManager] Subtotal calculado:', subtotal);
+    this.currentSubtotal = subtotal;
     this.updateTotals(subtotal);
-    console.log('✅ [UIManager] Renderizado completado');
   }
 
   createItemHTML(item) {
@@ -78,7 +69,16 @@ class UIManager {
 
   updateTotals(subtotal) {
     const formattedSubtotal = `S/ ${(subtotal / 100).toFixed(2)}`;
-    const formattedTotal = `PEN S/ ${(subtotal / 100).toFixed(2)}`;
+    
+    let shippingCost = 0;
+    const shippingCostElement = document.getElementById("shipping-cost");
+    if (shippingCostElement && shippingCostElement.textContent.includes("S/")) {
+      const costText = shippingCostElement.textContent.replace("S/", "").trim();
+      shippingCost = parseFloat(costText) * 100;
+    }
+    
+    const total = subtotal + shippingCost;
+    const formattedTotal = `PEN S/ ${(total / 100).toFixed(2)}`;
 
     if (this.subtotalElement) {
       this.subtotalElement.textContent = formattedSubtotal;
@@ -90,22 +90,72 @@ class UIManager {
 
   prefillForm(customerInfo) {
     if (customerInfo.email) {
-      const emailInput = this.form.querySelector('input[name="email"]');
-      if (emailInput) emailInput.value = customerInfo.email;
+      const emailInput = this.form.querySelector('#email') || this.form.querySelector('input[name="email"]');
+      if (emailInput) {
+        emailInput.value = customerInfo.email;
+      }
     }
 
     if (customerInfo.customer) {
-      const firstNameInput = this.form.querySelector(
-        'input[name="first_name"]'
-      );
-      const lastNameInput = this.form.querySelector('input[name="last_name"]');
+      this.fillAddressFields(customerInfo.customer);
+    }
+  }
 
-      if (firstNameInput && customerInfo.customer.first_name) {
-        firstNameInput.value = customerInfo.customer.first_name;
+  fillAddressFields(customer) {
+    const firstNameInput = document.querySelector('#first_name') || document.querySelector('input[name="first_name"]');
+    const lastNameInput = document.querySelector('#last_name') || document.querySelector('input[name="last_name"]');
+    const dniInput = document.querySelector('#dni') || document.querySelector('input[name="dni"]');
+    const address1Input = document.querySelector('#address1') || document.querySelector('input[name="address1"]');
+    const address2Input = document.querySelector('#address2') || document.querySelector('input[name="address2"]');
+    const cityInput = document.querySelector('#city') || document.querySelector('input[name="city"]');
+    const zipInput = document.querySelector('#zip') || document.querySelector('input[name="zip"]');
+    const phoneInput = document.querySelector('#phone') || document.querySelector('input[name="phone"]');
+    const provinceSelect = document.querySelector('#province') || document.querySelector('select[name="province"]');
+
+    if (firstNameInput && customer.first_name) {
+      firstNameInput.value = customer.first_name;
+    }
+    
+    if (lastNameInput && customer.last_name) {
+      lastNameInput.value = customer.last_name;
+    }
+
+    if (dniInput && customer.dni) {
+      dniInput.value = customer.dni;
+    }
+
+    if (customer.address) {
+      if (address1Input && customer.address.address1) {
+        address1Input.value = customer.address.address1;
       }
-      if (lastNameInput && customerInfo.customer.last_name) {
-        lastNameInput.value = customerInfo.customer.last_name;
+      
+      if (address2Input && customer.address.address2) {
+        address2Input.value = customer.address.address2;
       }
+      
+      if (cityInput && customer.address.city) {
+        cityInput.value = customer.address.city;
+      }
+      
+      if (zipInput && customer.address.zip) {
+        zipInput.value = customer.address.zip;
+      }
+
+      if (provinceSelect && customer.address.province) {
+        const provinceName = customer.address.province.toLowerCase();
+        const options = provinceSelect.querySelectorAll('option');
+        
+        options.forEach(option => {
+          if (option.value.toLowerCase() === provinceName || 
+              option.textContent.toLowerCase().includes(provinceName)) {
+            option.selected = true;
+          }
+        });
+      }
+    }
+
+    if (phoneInput && customer.phone) {
+      phoneInput.value = customer.phone;
     }
   }
 
@@ -127,7 +177,12 @@ class UIManager {
   }
 
   showMessage(message, isError = false) {
-    // Por ahora usamos alert, pero puedes mejorarlo con notificaciones más elegantes
     alert(message);
+  }
+
+  setupEventListeners() {
+    document.addEventListener('shippingCostChanged', () => {
+      this.updateTotals(this.currentSubtotal);
+    });
   }
 }
