@@ -4,8 +4,9 @@ class IzipayHandler {
     this.token = null;
     this.izipayConfig = {
       paymentLinkUrl: "/izipay/payment-link/",
+      searchUrl: "/izipay/search/",
       currency: "PEN",
-      merchantCode: "4004345",
+      merchantCode: "4006089",
       publicKey: "VErethUtraQuxas57wuMuquprADrAHAb",
     };
   }
@@ -22,6 +23,13 @@ class IzipayHandler {
 
       const orderNumber = orderData.orderNumber || `ORDER-${Date.now()}`;
 
+      console.log("🔍 [IzipayHandler] Datos del pago:", {
+        amount: orderData.total,
+        amountType: typeof orderData.total,
+        orderNumber: orderNumber,
+        customerEmail: billingData.email
+      });
+
       const payload = {
         amount: orderData.total,
         orderNumber: orderNumber,
@@ -29,7 +37,9 @@ class IzipayHandler {
         customerName: `${billingData.firstName} ${billingData.lastName}`,
         billing: billingData,
         shipping: shippingData || billingData,
-        currency: this.izipayConfig.currency
+        currency: this.izipayConfig.currency,
+        shopifyOrderId: orderData.shopifyOrderId,
+        productDescription: orderData.productDescription || "Orden de compra online"
       };
 
       const response = await fetch(this.izipayConfig.paymentLinkUrl, {
@@ -56,6 +66,42 @@ class IzipayHandler {
       }
     } catch (error) {
       console.error("❌ Error creando Payment Link:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Buscar el estado de un Payment Link
+   */
+  async searchPaymentLink(paymentLinkId) {
+    try {
+      const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]");
+      if (!csrfToken) {
+        throw new Error("CSRF token no encontrado");
+      }
+
+      const payload = {
+        paymentLinkId: paymentLinkId
+      };
+
+      const response = await fetch(this.izipayConfig.searchUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken.value,
+        },
+        body: JSON.stringify(payload),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }      
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("❌ Error buscando Payment Link:", error);
       throw error;
     }
   }
@@ -127,7 +173,8 @@ class IzipayHandler {
       const paymentOrderData = {
         ...orderData,
         total: totalAmount,
-        orderNumber: orderData.orderNumber || `ORDER-${Date.now()}`
+        orderNumber: orderData.orderNumber || `ORDER-${Date.now()}`,
+        shopifyOrderId: orderData.shopifyOrderId || null
       };
       
       const result = await this.createPaymentLink(paymentOrderData, billingData, shippingData);

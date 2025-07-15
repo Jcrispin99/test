@@ -60,13 +60,13 @@ class ShopifyHandler {
 
   calculateOrderTotal() {
     if (this.shopifyData?.total_price) {
-      const total = parseFloat(this.shopifyData.total_price);
-      return total.toFixed(2);
+      // Convertir de centavos a soles (Shopify envía en centavos)
+      return parseFloat(this.shopifyData.total_price) / 100;
     }
     
     const items = this.getOrderItems();
     const totalInCents = items.reduce((total, item) => total + item.line_price, 0);
-    const totalDecimal = (totalInCents / 100).toFixed(2);
+    const totalDecimal = totalInCents / 100;
     return totalDecimal;
   }
 
