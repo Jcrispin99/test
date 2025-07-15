@@ -16,7 +16,6 @@ class PeruRegions {
     initializeRegions() {
         this.provinceSelect = document.getElementById('province');
         if (!this.provinceSelect) {
-            console.error('❌ [PeruRegions] Select de provincia no encontrado');
             return;
         }
 
@@ -25,8 +24,6 @@ class PeruRegions {
 
     async loadRegions() {
         try {
-            console.log('🌍 [PeruRegions] Cargando regiones desde API...');
-
             const response = await fetch('https://api.ubigeos.com/v1/ubigeos?nivel=1');
 
             if (!response.ok) {
@@ -34,11 +31,9 @@ class PeruRegions {
             }
 
             const regions = await response.json();
-
             this.populateRegions(regions);
 
         } catch (error) {
-            console.warn('⚠️ [PeruRegions] API no disponible, usando regiones por defecto:', error.message);
             this.loadFallbackRegions();
         }
     }
@@ -61,14 +56,12 @@ class PeruRegions {
         const provinceInput = document.getElementById('province');
         
         if (!cityInput || !provinceInput) {
-            console.log('⚠️ [PeruRegions] No se encontraron campos de ciudad o provincia');
             return;
         }
 
         const customerCity = cityInput.value.trim();
         
         if (!customerCity) {
-            console.log('ℹ️ [PeruRegions] No hay ciudad del cliente para autoseleccionar');
             return;
         }
 
@@ -112,7 +105,6 @@ class PeruRegions {
             for (let i = 0; i < options.length; i++) {
                 if (options[i].textContent.trim() === matchedRegion) {
                     this.provinceSelect.selectedIndex = i;
-                    console.log(`✅ [PeruRegions] Región autoseleccionada: ${matchedRegion} (basada en ciudad: ${customerCity})`);
                     
                     const changeEvent = new Event('change', { bubbles: true });
                     this.provinceSelect.dispatchEvent(changeEvent);

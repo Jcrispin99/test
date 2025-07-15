@@ -31,14 +31,14 @@ class UIManager {
     }
     
     if (!items || items.length === 0) {
-      console.log('⚠️ [UIManager] No hay items para renderizar');
+      this.cartElement.innerHTML = '<div class="empty-cart">No hay productos en el carrito</div>';
       return;
     }
 
     let subtotal = 0;
     this.cartElement.innerHTML = "";
 
-    items.forEach((item, index) => {
+    items.forEach((item) => {
       subtotal += item.line_price;
       const itemHTML = this.createItemHTML(item);
       this.cartElement.insertAdjacentHTML("beforeend", itemHTML);
@@ -49,21 +49,39 @@ class UIManager {
   }
 
   createItemHTML(item) {
+    let imageUrl = '';
+    
+    if (item.image) {
+      imageUrl = item.image;
+    } else if (item.featured_image) {
+      imageUrl = item.featured_image;
+    } else if (item.images && item.images.length > 0) {
+      imageUrl = item.images[0];
+    } else {
+      // Imagen placeholder por defecto
+      imageUrl = 'https://via.placeholder.com/60x60/f0f0f0/999999?text=Producto';
+    }
+
+    // Propiedades con fallbacks
+    const productName = item.name || item.product_title || item.title || 'Producto sin nombre';
+    const productVariant = item.sku || item.variant_title || '';
+    const linePrice = item.line_price || 0;
+    const quantity = item.quantity || 1;
+
     return `
       <div class="product-item">
         <div class="product-image">
-          <img src="${
-            item.image || "https://via.placeholder.com/60x60"
-          }" alt="${item.name}" />
-          <div class="quantity-badge">${item.quantity}</div>
+          <img src="${imageUrl}" 
+               alt="${productName}" 
+               loading="lazy"
+               onerror="this.src='https://via.placeholder.com/60x60/f0f0f0/999999?text=Sin+Imagen'" />
+          <div class="quantity-badge">${quantity}</div>
         </div>
         <div class="product-details">
-          <div class="product-name">${item.name}</div>
-          <div class="product-variant">${item.sku || ""}</div>
+          <div class="product-name">${productName}</div>
+          <div class="product-variant">${productVariant}</div>
         </div>
-        <div class="product-price">S/ ${(item.line_price / 100).toFixed(
-          2
-        )}</div>
+        <div class="product-price">S/ ${(linePrice / 100).toFixed(2)}</div>
       </div>`;
   }
 

@@ -155,7 +155,6 @@ class CheckoutController {
 
 document.addEventListener("DOMContentLoaded", () => {
   if (!window.checkoutController) {
-    console.log("🚀 Inicializando CheckoutController...");
     window.checkoutController = new CheckoutController();
   } else {
     console.warn("⚠️ CheckoutController ya está inicializado");

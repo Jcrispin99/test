@@ -9,16 +9,14 @@ class ShopifyHandler {
       const dataParam = urlParams.get("data");
       
       if (!dataParam) {
-        console.warn("⚠️ No se encontraron datos de Shopify en la URL");
-        return {};
+        return this.getMockData();
       }
       
       const decodedData = decodeURIComponent(dataParam);
       const parsedData = JSON.parse(decodedData);
       
       if (!parsedData.items || !Array.isArray(parsedData.items)) {
-        console.warn("⚠️ Los datos de Shopify no tienen una estructura de items válida");
-        parsedData.items = [];
+        parsedData.items = this.getMockItems();
       }
       
       if (parsedData.customer) {
@@ -144,5 +142,41 @@ class ShopifyHandler {
     const url = new URL(window.location);
     url.searchParams.delete("data");
     window.history.replaceState({}, document.title, url.pathname);
+  }
+
+  getMockData() {
+    return {
+      items: this.getMockItems(),
+      total_price: 50.00,
+      currency: 'PEN',
+      email: 'test@ejemplo.com',
+      customer: {
+        first_name: 'Cliente',
+        last_name: 'Prueba',
+        email: 'test@ejemplo.com',
+        phone: '989623418',
+        address: {
+          address1: 'Av. Test 123',
+          address2: '',
+          city: 'Lima',
+          province: 'Lima',
+          zip: '15001',
+          country: 'Perú'
+        }
+      }
+    };
+  }
+
+  getMockItems() {
+    return [
+      {
+        id: 1,
+        name: "Producto de Prueba",
+        quantity: 1,
+        line_price: 5000, // 50.00 en centavos
+        sku: "TEST-001",
+        image: "https://via.placeholder.com/150x150/FF6B6B/FFFFFF?text=Producto+Prueba"
+      }
+    ];
   }
 }
