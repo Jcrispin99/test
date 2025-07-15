@@ -202,7 +202,7 @@
     <script src="{% static 'checkout/js/ui-manager.js' %}"></script>
     <script src="{% static 'checkout/js/checkout-controller.js' %}"></script>
 
-    <!-- Script de verificación -->
+    <!-- Script de verificación e inicialización -->
     <script>
       window.addEventListener("load", () => {
         if (typeof Izipay !== "undefined") {
@@ -211,6 +211,11 @@
           console.error("❌ SDK de Izipay no se pudo cargar");
         }
       });
+      
+      // Inicializar CheckoutController
+      console.log('🎯 [HTML] Inicializando CheckoutController...');
+      const checkoutController = new CheckoutController();
+      console.log('🎯 [HTML] CheckoutController inicializado:', checkoutController);
     </script>
   </body>
 </html>

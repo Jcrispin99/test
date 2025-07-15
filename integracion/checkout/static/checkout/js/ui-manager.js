@@ -1,6 +1,11 @@
 // Manejo de la interfaz de usuario
 class UIManager {
   constructor() {
+    console.log('🎨 [UIManager] Inicializando UIManager...');
+    this.initializeElements();
+  }
+
+  initializeElements() {
     this.cartElement = document.getElementById("cart");
     this.subtotalElement = document.getElementById("subtotal");
     this.totalElement = document.getElementById("total");
@@ -8,21 +13,48 @@ class UIManager {
     this.submitButton = this.form?.querySelector('button[type="submit"]');
     this.originalButtonText =
       this.submitButton?.textContent || "Completar pedido";
+
+    console.log('🎨 [UIManager] Elementos encontrados:');
+    console.log('  - cartElement:', this.cartElement);
+    console.log('  - subtotalElement:', this.subtotalElement);
+    console.log('  - totalElement:', this.totalElement);
+    console.log('  - form:', this.form);
+    console.log('  - submitButton:', this.submitButton);
   }
 
   renderCartItems(items) {
-    if (!items || items.length === 0) return;
+    console.log('🎨 [UIManager] renderCartItems llamado con:', items);
+    console.log('🎨 [UIManager] cartElement actual:', this.cartElement);
+    
+    if (!this.cartElement) {
+      console.error('❌ [UIManager] cartElement no encontrado! Reintentando...');
+      this.initializeElements();
+      if (!this.cartElement) {
+        console.error('❌ [UIManager] cartElement sigue sin encontrarse después del reinicio');
+        return;
+      }
+    }
+    
+    if (!items || items.length === 0) {
+      console.log('⚠️ [UIManager] No hay items para renderizar');
+      return;
+    }
 
     let subtotal = 0;
     this.cartElement.innerHTML = "";
+    console.log('🎨 [UIManager] Cart limpiado, iniciando renderizado...');
 
-    items.forEach((item) => {
+    items.forEach((item, index) => {
+      console.log(`🎨 [UIManager] Procesando item ${index + 1}:`, item);
       subtotal += item.line_price;
       const itemHTML = this.createItemHTML(item);
+      console.log(`🎨 [UIManager] HTML generado para item ${index + 1}:`, itemHTML);
       this.cartElement.insertAdjacentHTML("beforeend", itemHTML);
     });
 
+    console.log('🎨 [UIManager] Subtotal calculado:', subtotal);
     this.updateTotals(subtotal);
+    console.log('✅ [UIManager] Renderizado completado');
   }
 
   createItemHTML(item) {
