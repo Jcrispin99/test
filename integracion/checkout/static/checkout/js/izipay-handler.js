@@ -1,4 +1,3 @@
-// Manejo específico para integración con Izipay
 class IzipayHandler {
   constructor() {
     this.checkout = null;
@@ -6,7 +5,7 @@ class IzipayHandler {
     this.izipayConfig = {
       apiUrl: "/izipay/generate-token/",
       currency: "PEN",
-      merchantCode: "4004396",
+      merchantCode: "4004345",
       publicKey: "VErethUtraQuxas57wuMuquprADrAHAb",
     };
   }
@@ -14,6 +13,10 @@ class IzipayHandler {
   async generateToken(orderData) {
     try {
       console.log("🔄 Generando token de Izipay...", orderData);
+
+      // PRUEBA: Enviar en centavos al token endpoint también
+      const amountInCents = this.convertToAmountFormat(orderData.total);
+      console.log(`💰 [Token] PRUEBA - Enviando en centavos: ${orderData.total} -> ${amountInCents}`);
 
       const response = await fetch(this.izipayConfig.apiUrl, {
         method: "POST",
@@ -23,7 +26,7 @@ class IzipayHandler {
             .value,
         },
         body: JSON.stringify({
-          amount: orderData.total,
+          amount: amountInCents, // PRUEBA: Enviar en centavos al token
           orderNumber: orderData.orderNumber || `ORDER-${Date.now()}`,
         }),
       });
@@ -33,6 +36,7 @@ class IzipayHandler {
       if (data.success) {
         this.token = data.token;
         console.log("✅ Token generado exitosamente");
+        console.log(`💰 [Token Response] Amount recibido: ${data.amount}`);
         return data;
       } else {
         throw new Error(data.error);
@@ -47,31 +51,39 @@ class IzipayHandler {
     try {
       console.log("🚀 Inicializando checkout de Izipay...");
 
-      // Generar token
       const tokenData = await this.generateToken(orderData);
 
-      // Configurar SDK según documentación oficial de Izipay
+      // PRUEBA: Usar el mismo monto que el token, sin convertir
+      console.log(`💰 [Checkout] Usando monto directo del token: ${tokenData.amount}`);
+
+      const convertedState = this.getRegionNameFromCode(billingData.state);
+      console.log(`🌍 [Izipay Config] Conversión de región: "${billingData.state}" -> "${convertedState}"`);
+
       const iziConfig = {
         transactionId: String(tokenData.transactionId),
         action: "pay",
         merchantCode: String(this.izipayConfig.merchantCode),
         order: {
           orderNumber: String(tokenData.orderNumber),
-          showAmount: true,
           currency: this.izipayConfig.currency,
-          amount: String(tokenData.amount),
-          payMethod: "all",
-          channel: "web",
+          amount: String(tokenData.amount), // Usar el mismo monto del token
           processType: "AT",
           merchantBuyerId: String(this.izipayConfig.merchantCode),
           dateTimeTransaction: String(Date.now()) + "000",
         },
-        billing: billingData,
-        render: {
-          typeForm: "embedded",
-          container: "izipay-form-container",
-          showButtonProcessForm: true,
-        },
+        billing: {
+          firstName: billingData.firstName || "Test",
+          lastName: billingData.lastName || "User", 
+          email: billingData.email || "test@example.com",
+          phoneNumber: billingData.phoneNumber || "987654321",
+          street: billingData.street || "Av Test 123",
+          city: billingData.city || "Lima",
+          state: convertedState || "Lima",
+          country: "PE",
+          postalCode: billingData.postalCode || "15001",
+          documentType: "DNI",
+          document: billingData.document || "12345678"
+        }
       };
 
       console.log("⚙️ Configuración del SDK:", iziConfig);
@@ -81,10 +93,22 @@ class IzipayHandler {
         throw new Error("SDK de Izipay no está cargado");
       }
 
-      // Inicializar SDK según documentación oficial
-      this.checkout = new Izipay({ config: iziConfig });
-      console.log("✅ Checkout inicializado correctamente");
-      return true;
+      // Verificar que el container existe
+      const container = document.getElementById("izipay-form-container");
+      if (!container) {
+        throw new Error("Container 'izipay-form-container' no encontrado en el DOM");
+      }
+
+      try {
+        // Usar la estructura exacta de la documentación oficial
+        this.checkout = new Izipay({ config: iziConfig });
+        console.log("✅ Checkout inicializado correctamente");
+        return true;
+      } catch ({Errors, message, date}) {
+        console.error("❌ Error inicializando checkout:");
+        console.log({Errors, message, date});
+        return false;
+      }
     } catch (error) {
       console.error("❌ Error inicializando checkout:", error);
       return false;
@@ -99,27 +123,32 @@ class IzipayHandler {
         throw new Error("Checkout no inicializado");
       }
 
+      const paymentContainer = document.getElementById("izipay-form-container");
+      if (paymentContainer) {
+        paymentContainer.style.display = "block";
+      }
+
+      const callbackResponsePayment = callbackResponse || this.handlePaymentResponse.bind(this);
+
       this.checkout.LoadForm({
         authorization: this.token,
         keyRSA: this.izipayConfig.publicKey,
-        callbackResponse:
-          callbackResponse || this.handlePaymentResponse.bind(this),
+        callbackResponse: callbackResponsePayment,
       });
 
       console.log("✅ Formulario de pago mostrado");
-    } catch (error) {
-      console.error("❌ Error mostrando formulario:", error);
-      throw error;
+    } catch ({Errors, message, date}) {
+      console.error("❌ Error mostrando formulario:");
+      console.log({Errors, message, date});
+      throw new Error(message || "Error mostrando formulario");
     }
   }
 
   handlePaymentResponse(response) {
     console.log("💳 Respuesta del pago recibida:", response);
 
-    // Verificar si el pago fue exitoso
     if (response && response.success) {
       console.log("✅ Pago exitoso");
-      // Aquí puedes agregar lógica adicional para manejar el éxito
       this.onPaymentSuccess(response);
     } else {
       console.log("❌ Pago fallido o cancelado");
@@ -128,40 +157,52 @@ class IzipayHandler {
   }
 
   onPaymentSuccess(response) {
-    // Mostrar mensaje de éxito
     alert("¡Pago realizado exitosamente!");
-
-    // Aquí puedes agregar:
-    // - Redirección a página de éxito
-    // - Envío de confirmación
-    // - Limpieza del carrito
-    console.log("🎉 Procesando pago exitoso...", response);
   }
 
   onPaymentError(response) {
-    // Mostrar mensaje de error
     alert("Error en el pago. Por favor, intenta nuevamente.");
     console.log("💥 Error en el pago:", response);
   }
 
-  // Método para preparar datos de billing desde el formulario
   prepareBillingData(formData) {
-    return {
-      firstName: formData.get("first_name") || "Test",
-      lastName: formData.get("last_name") || "User",
-      email: formData.get("email") || "test@example.com",
-      phoneNumber: formData.get("phone") || "987654321",
-      street: formData.get("address1") || "Av. Test 123",
-      city: formData.get("city") || "Lima",
-      state: formData.get("province") || "Lima",
+    const rawState = formData.get("province") || "";
+    
+    const billingData = {
+      firstName: formData.get("first_name") || "",
+      lastName: formData.get("last_name") || "",
+      email: formData.get("email") || "",
+      phoneNumber: formData.get("phone") || "",
+      street: formData.get("address1") || "",
+      city: formData.get("city") || "",
+      state: rawState,
       country: "PE",
-      postalCode: formData.get("zip") || "15001",
+      postalCode: formData.get("zip") || "",
       documentType: "DNI",
-      document: formData.get("document") || "12345678",
+      document: formData.get("dni") || "",
     };
+
+    const requiredFields = ['firstName', 'lastName', 'email', 'phoneNumber', 'street', 'city', 'document'];
+    const missingFields = requiredFields.filter(field => !billingData[field]);
+    
+    if (missingFields.length > 0) {
+      billingData.firstName = billingData.firstName || "Test";
+      billingData.lastName = billingData.lastName || "User";
+      billingData.email = billingData.email || "test@example.com";
+      billingData.phoneNumber = billingData.phoneNumber || "987654321";
+      billingData.street = billingData.street || "Av. Test 123";
+      billingData.city = billingData.city || "Lima";
+      billingData.state = billingData.state || "Lima";
+      billingData.postalCode = billingData.postalCode || "15001";
+      billingData.document = billingData.document || "12345678";
+    }
+
+    console.log('📋 Datos de billing preparados (antes de conversión):', billingData);
+    console.log('🌍 Región original del formulario:', rawState);
+    
+    return billingData;
   }
 
-  // Método legacy para compatibilidad
   prepareIzipayPayment(orderData, totalAmount) {
     return {
       amount: totalAmount,
@@ -182,6 +223,15 @@ class IzipayHandler {
     return (
       "ORDER-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9)
     );
+  }
+
+  // Función para convertir monto al formato requerido por Izipay
+  convertToAmountFormat(amount) {
+    // Izipay espera el monto en centavos (por ejemplo: 45.55 -> 4555)
+    const numericAmount = parseFloat(amount);
+    const amountInCents = Math.round(numericAmount * 100);
+    console.log(`💰 [convertToAmountFormat] Monto convertido: ${amount} (${typeof amount}) -> ${amountInCents} centavos`);
+    return amountInCents;
   }
 
   // Método legacy actualizado
@@ -209,6 +259,60 @@ class IzipayHandler {
     } catch (error) {
       console.error("❌ Error en processPayment:", error);
       return { success: false, message: error.message };
+    }
+  }
+
+  // Función para convertir código de región a nombre
+  getRegionNameFromCode(code) {
+    const regionMap = {
+      '01': 'Amazonas',
+      '02': 'Áncash', 
+      '03': 'Apurímac',
+      '04': 'Arequipa',
+      '05': 'Ayacucho',
+      '06': 'Cajamarca',
+      '07': 'Callao',
+      '08': 'Cusco',
+      '09': 'Huancavelica',
+      '10': 'Huánuco',
+      '11': 'Ica',
+      '12': 'Junín',
+      '13': 'La Libertad',
+      '14': 'Lambayeque',
+      '15': 'Lima',
+      '16': 'Loreto',
+      '17': 'Madre de Dios',
+      '18': 'Moquegua',
+      '19': 'Pasco',
+      '20': 'Piura',
+      '21': 'Puno',
+      '22': 'San Martín',
+      '23': 'Tacna',
+      '24': 'Tumbes',
+      '25': 'Ucayali'
+    };
+
+    if (!code) {
+      console.log('⚠️ [getRegionNameFromCode] Código vacío, devolviendo "Lima"');
+      return 'Lima';
+    }
+
+    // Si ya es un nombre (contiene letras), devolverlo tal como está
+    if (/[a-zA-ZáéíóúñÁÉÍÓÚÑ]/.test(code)) {
+      console.log(`✅ [getRegionNameFromCode] Ya es un nombre: ${code}`);
+      return code;
+    }
+
+    // Convertir código numérico a string con formato correcto
+    const normalizedCode = String(code).padStart(2, '0');
+    const regionName = regionMap[normalizedCode];
+    
+    if (regionName) {
+      console.log(`✅ [getRegionNameFromCode] Código convertido: ${code} (${normalizedCode}) -> ${regionName}`);
+      return regionName;
+    } else {
+      console.warn(`⚠️ [getRegionNameFromCode] Código no encontrado: ${code} (${normalizedCode}), devolviendo código original`);
+      return code;
     }
   }
 }

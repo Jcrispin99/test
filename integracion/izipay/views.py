@@ -54,8 +54,13 @@ class IzipayGenerateTokenView(View):
                 "merchantCode": credential.merchant_code,
                 "orderNumber": data['orderNumber'],
                 "publicKey": credential.public_key,
-                "amount": str(data['amount'])
+                "amount": "{:.2f}".format(int(data['amount']) / 100)
             }
+            
+            print(f"\n=== DEBUG IZIPAY TOKEN ===")
+            print(f"Amount received from frontend: {data['amount']} (type: {type(data['amount'])})")
+            print(f"Payload to send to Izipay: {payload}")
+            print("==========================\n")
             
             headers = {
                 "transactionId": transaction_id,
@@ -70,6 +75,11 @@ class IzipayGenerateTokenView(View):
             try:
                 response = requests.post(url, json=payload, headers=headers, timeout=30)
                 response_data = response.json()
+                
+                print(f"\n=== IZIPAY RESPONSE ===")
+                print(f"Status Code: {response.status_code}")
+                print(f"Response: {response_data}")
+                print("=======================\n")
                 
                 # Verificar respuesta de Izipay
                 if response.status_code == 200 and response_data.get('code') == '00':
