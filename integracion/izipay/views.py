@@ -3,6 +3,119 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views import View
 from django.utils.decorators import method_decorator
 import json
+import requests
+from .models import IzipayCredential, IzipayTransactionCounter
+
+
+class IzipayGenerateTokenView(View):
+    """
+    Vista para generar token de sesión de Izipay desde el backend
+    Endpoint: POST /izipay/generate-token/
+    """
+    
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def post(self, request):
+        try:
+            # Obtener datos del request
+            data = json.loads(request.body)
+            
+            # Validar datos requeridos
+            required_fields = ['amount', 'orderNumber']
+            for field in required_fields:
+                if field not in data:
+                    return JsonResponse({
+                        'success': False,
+                        'error': f'Campo requerido: {field}'
+                    }, status=400)
+            
+            # Obtener credenciales de Izipay
+            try:
+                credential = IzipayCredential.objects.first()
+                if not credential:
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'No se encontraron credenciales de Izipay configuradas'
+                    }, status=500)
+            except Exception as e:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Error al obtener credenciales: {str(e)}'
+                }, status=500)
+            
+            # Generar transaction ID único
+            transaction_id = IzipayTransactionCounter.get_next_transaction_id()
+            
+            # Preparar payload para Izipay
+            payload = {
+                "requestSource": "ECOMMERCE",
+                "merchantCode": credential.merchant_code,
+                "orderNumber": data['orderNumber'],
+                "publicKey": credential.public_key,
+                "amount": str(data['amount'])
+            }
+            
+            headers = {
+                "transactionId": transaction_id,
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+            
+            # URL de la API de Izipay (sandbox)
+            url = "https://sandbox-api-pw.izipay.pe/gateway/api/v1/proxy-cors/https://sandbox-api-pw.izipay.pe/security/v1/Token/Generate"
+            
+            # Realizar petición a Izipay
+            try:
+                response = requests.post(url, json=payload, headers=headers, timeout=30)
+                response_data = response.json()
+                
+                # Verificar respuesta de Izipay
+                if response.status_code == 200 and response_data.get('code') == '00':
+                    return JsonResponse({
+                        'success': True,
+                        'token': response_data.get('response', {}).get('token'),
+                        'userOrg': response_data.get('response', {}).get('userOrg'),
+                        'userScoring': response_data.get('response', {}).get('userScoring'),
+                        'transactionId': transaction_id,
+                        'orderNumber': data['orderNumber'],
+                        'amount': data['amount']
+                    })
+                else:
+                    return JsonResponse({
+                        'success': False,
+                        'error': f"Error de Izipay: {response_data.get('message', 'Error desconocido')}",
+                        'izipay_code': response_data.get('code'),
+                        'izipay_response': response_data
+                    }, status=400)
+                    
+            except requests.exceptions.Timeout:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Timeout: La petición a Izipay tardó demasiado'
+                }, status=408)
+            except requests.exceptions.ConnectionError:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Error de conexión: No se pudo conectar con Izipay'
+                }, status=503)
+            except requests.exceptions.RequestException as e:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Error en la petición a Izipay: {str(e)}'
+                }, status=500)
+                
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'success': False,
+                'error': 'Datos JSON inválidos'
+            }, status=400)
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': f'Error interno: {str(e)}'
+            }, status=500)
 
 
 class IzipayTestView(View):

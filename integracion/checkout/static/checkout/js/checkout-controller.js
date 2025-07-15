@@ -35,6 +35,8 @@ class CheckoutController {
     this.uiManager.setLoadingState(true);
 
     try {
+      console.log("🚀 Iniciando proceso de orden...");
+
       // 1. Obtener datos del formulario
       const formData = new FormData(this.uiManager.form);
       const orderData = Object.fromEntries(formData.entries());
@@ -46,24 +48,37 @@ class CheckoutController {
       const shopifyResult = await this.createShopifyOrder(shopifyOrder);
 
       if (shopifyResult.success) {
-        // 4. Si Shopify fue exitoso, preparar pago con Izipay
+        console.log("✅ Orden creada en Shopify exitosamente");
+
+        // 4. Preparar datos para Izipay
         const totalAmount = this.shopifyHandler.calculateOrderTotal();
-        const izipayPayment = this.izipayHandler.prepareIzipayPayment(
-          shopifyOrder,
-          totalAmount
+        const orderDataForIzipay = {
+          total: totalAmount.toString(),
+          orderNumber: `ORDER-${Date.now()}`,
+        };
+
+        const billingData = this.izipayHandler.prepareBillingData(formData);
+
+        console.log("💳 Iniciando proceso de pago con Izipay...");
+
+        // 5. Inicializar y mostrar formulario de Izipay
+        const initialized = await this.izipayHandler.initializeCheckout(
+          orderDataForIzipay,
+          billingData
         );
 
-        // 5. Por ahora solo mostramos éxito, luego implementarás Izipay
-        this.uiManager.showMessage(
-          "¡Orden creada en Shopify! Preparando pago..."
-        );
+        if (initialized) {
+          // Mostrar formulario de pago
+          this.izipayHandler.showPaymentForm((paymentResponse) => {
+            this.handlePaymentCallback(paymentResponse, shopifyResult);
+          });
 
-        // TODO: Aquí irá la integración con Izipay
-        const paymentResult = await this.izipayHandler.processPayment(
-          izipayPayment
-        );
-
-        this.clearCheckout();
+          this.uiManager.showMessage(
+            "Orden creada exitosamente. Completa tu pago..."
+          );
+        } else {
+          throw new Error("No se pudo inicializar el formulario de pago");
+        }
       } else {
         this.uiManager.showMessage(
           "Error: " + (shopifyResult.error || "Error desconocido"),
@@ -71,13 +86,37 @@ class CheckoutController {
         );
       }
     } catch (error) {
-      console.error("Error en el proceso:", error);
+      console.error("❌ Error en el proceso:", error);
       this.uiManager.showMessage(
         "Error de conexión. Intenta nuevamente.",
         true
       );
     } finally {
       this.uiManager.setLoadingState(false);
+    }
+  }
+
+  handlePaymentCallback(paymentResponse, shopifyResult) {
+    console.log("🔄 Procesando callback de pago...", paymentResponse);
+
+    if (paymentResponse && paymentResponse.success) {
+      console.log("🎉 Pago completado exitosamente");
+
+      // Mostrar mensaje de éxito
+      this.uiManager.showMessage(
+        "¡Pago realizado exitosamente! Tu orden ha sido procesada."
+      );
+
+      // Limpiar el checkout
+      setTimeout(() => {
+        this.clearCheckout();
+      }, 3000);
+    } else {
+      console.log("❌ Error en el pago");
+      this.uiManager.showMessage(
+        "Error en el pago. Por favor, intenta nuevamente.",
+        true
+      );
     }
   }
 
@@ -103,8 +142,14 @@ class CheckoutController {
   clearCheckout() {
     this.uiManager.clearCart();
     this.shopifyHandler.clearShopifyData();
+
+    // Opcional: recargar la página o redireccionar
+    // window.location.reload();
   }
 }
 
-// Inicializar la aplicación
-const checkoutApp = new CheckoutController();
+// Inicializar la aplicación cuando el DOM esté listo
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("🚀 Inicializando CheckoutController...");
+  const checkoutApp = new CheckoutController();
+});
