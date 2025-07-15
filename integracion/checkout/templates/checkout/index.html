@@ -1,176 +1,234 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Checkout Personalizado</title>
-    <link rel="stylesheet" href="{% static 'checkout/css/index.css' %}" />
 
-    <!-- SDK de Izipay -->
-    <script src="https://static.micuentaweb.pe/static/js/krypton-client/V4/js/krypton-client.min.js"></script>
-  </head>
-  <body>
-    <div class="header-section">
-      <div class="header-image"></div>
-    </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checkout Personalizado</title>
+  <link rel="stylesheet" href="{% static 'checkout/css/index.css' %}" />
 
-    <div class="main-container">
-      <!-- Sección izquierda: formulario -->
-      <div class="left-section">
-        <form id="checkout-form" method="POST">
-          {% csrf_token %}
-          <div class="section-title">Cuenta</div>
-          <div class="form-group">
-            <input
-              type="email"
-              name="email"
-              placeholder="Correo electrónico"
-              required
-            />
-          </div>
+  <style>
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
 
-          <div class="section-title">Entrega</div>
-          <div class="form-row">
-            <div class="form-group">
-              <input
-                type="text"
-                name="first_name"
-                placeholder="Nombre"
-                required
-              />
-            </div>
-            <div class="form-group">
-              <input
-                type="text"
-                name="last_name"
-                placeholder="Apellido"
-                required
-              />
-            </div>
-          </div>
-          <div class="form-group">
-            <input
-              type="text"
-              name="address1"
-              placeholder="Dirección"
-              required
-            />
-          </div>
-          <div class="form-group">
-            <input
-              type="text"
-              name="address2"
-              placeholder="Apartamento, suite, etc. (opcional)"
-            />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <input type="text" name="city" placeholder="Ciudad" required />
-            </div>
-            <div class="form-group">
-              <select name="province" required>
-                <option value="">Seleccionar región</option>
-                <option value="lima">Lima</option>
-                <option value="arequipa">Arequipa</option>
-                <option value="cusco">Cusco</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <input
-                type="text"
-                name="zip"
-                placeholder="Código postal"
-                required
-              />
-            </div>
-          </div>
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+  <script src="https://sandbox-checkout.izipay.pe/payments/v1/js/index.js" defer></script>
+</head>
 
-          <div class="checkbox-group">
-            <input type="checkbox" id="save-info" />
-            <label for="save-info"
-              >Guardar esta información para la próxima vez</label
-            >
-          </div>
+<body>
+  <div class="header-section">
+    <div class="header-image"></div>
+  </div>
 
-          <div class="section-title">Método de envío</div>
-          <div class="delivery-options">
-            <div class="delivery-option selected">
-              <input
-                type="radio"
-                name="shipping_method"
-                value="pickup"
-                checked
-              />
+  <div class="main-container">
+    <div class="left-section">
+      <form id="checkout-form" method="POST">
+        {% csrf_token %}
+        <div class="section-title">Cuenta</div>
+        <div class="form-group">
+          <input type="email" id="email" name="email" placeholder="Correo electrónico" required />
+        </div>
+
+        <div class="section-title">Entrega</div>
+        <div class="delivery-options">
+          <div class="delivery-option selected">
+            <input type="radio" name="shipping_method" value="shipping" id="shipping" checked />
+            <label for="shipping">
+              <div class="delivery-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                  <path
+                    d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
+                </svg>
+              </div>
+              <div class="delivery-info">
+                <div class="delivery-title">Envío</div>
+              </div>
+            </label>
+          </div>
+          <div class="delivery-option">
+            <input type="radio" name="shipping_method" value="pickup" id="pickup" />
+            <label for="pickup">
+              <div class="delivery-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                  <path
+                    d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+                </svg>
+              </div>
               <div class="delivery-info">
                 <div class="delivery-title">Retiro en tienda</div>
               </div>
-              <div class="delivery-price">GRATIS</div>
-            </div>
+            </label>
           </div>
-
-          <div class="section-title">Pago</div>
-          <div class="payment-methods">
-            <div class="payment-method">
-              <input type="radio" name="payment" value="card" checked />
-              <label>Pago seguro con tarjeta, efectivo y transferencia</label>
-            </div>
-          </div>
-
-          <div class="payment-info">
-            📱 <strong>Realiza tu pago fácil y rápido con Yape o Plin</strong
-            ><br />
-            📞 Abre tu App de Yape o Plin<br />
-            📱 Envía el pago al número: <strong>919 499 627</strong><br />
-            🏪 Nombre de la empresa: <strong>Kiosk Store S.A.C</strong><br />
-            📷 Toma captura de tu pantalla 📱<br />
-            📧 Envíala a nuestro WhatsApp: <strong>948 288 725</strong
-            ><br /><br />
-            ✅ Una vez confirmado el pago, procesaremos tu pedido de inmediato.
-          </div>
-
-          <button type="submit" class="continue-button">
-            Completar pedido
-          </button>
-        </form>
-      </div>
-
-      <!-- Sección derecha: resumen del pedido -->
-      <div class="right-section">
-        <div class="order-summary" id="cart"></div>
-
-        <div class="discount-code">
-          <input
-            type="text"
-            class="discount-input"
-            placeholder="Código de descuento"
-          />
-          <button type="button" class="discount-button">Aplicar</button>
         </div>
 
-        <div class="order-totals">
-          <div class="total-line">
-            <span>Subtotal</span><span id="subtotal">S/ 0.00</span>
+        <div id="shipping-fields" style="display: block;">
+          <div class="form-row">
+            <div class="form-group">
+              <input type="text" id="first_name" name="first_name" placeholder="Nombre" required />
+            </div>
+            <div class="form-group">
+              <input type="text" id="last_name" name="last_name" placeholder="Apellido" required />
+            </div>
           </div>
-          <div class="total-line">
-            <span>Envío</span><span id="shipping-cost">GRATIS</span>
+          <div class="form-group">
+            <input type="text" id="dni" name="dni" placeholder="DNI" required />
           </div>
-          <div class="total-line final">
-            <span>Total</span><span id="total">PEN S/ 0.00</span>
+          <div class="form-group">
+            <input type="text" id="address1" name="address1" placeholder="Dirección" required />
           </div>
+          <div class="form-group">
+            <input type="text" id="address2" name="address2" placeholder="Apartamento, suite, etc. (opcional)" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <input type="text" id="city" name="city" placeholder="Ciudad" required />
+            </div>
+            <div class="form-group">
+              <select id="province" name="province" required>
+                <option value="">Seleccionar región</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <input type="text" id="zip" name="zip" placeholder="Código postal" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <input type="tel" id="phone" name="phone" placeholder="Teléfono" required />
+          </div>
+
+          <div class="section-title2">Métodos de envío</div>
+          <div class="delivery-options">
+            <div class="delivery-option2">
+              <label for="shipping-premium">
+                <div class="delivery-info">
+                  <div class="delivery-title">Envío Premium 🚀🕒</div>
+                  <div class="delivery-description">Recibe tu pedido en 4 Horas en la ciudad de Huánuco! 🚚💨📦</div>
+                </div>
+                <div class="delivery-price">S/ 6.00</div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div id="pickup-info" style="display: none;">
+          <div class="section-title2">Sucursales de tienda</div>
+          <div class="store-options">
+            <div class="store-option">
+              <input type="radio" name="pickup_store" value="huanuco" id="store-huanuco" checked />
+              <label for="store-huanuco">
+                <div class="store-info">
+                  <div class="store-name">Kdosh Store - Huánuco</div>
+                  <div class="store-distance">(0.4 km)</div>
+                  <div class="store-address">Jirón Abtao 1101, Huánuco, PE-HUC</div>
+                  <div class="store-availability">Normalmente está listo en 4 horas</div>
+                </div>
+                <div class="store-price">GRATIS</div>
+              </label>
+            </div>
+            <div class="store-option">
+              <input type="radio" name="pickup_store" value="tingo-maria" id="store-tingo" />
+              <label for="store-tingo">
+                <div class="store-info">
+                  <div class="store-name">Kdosh Store - Tingo María</div>
+                  <div class="store-distance">(75.1 km)</div>
+                  <div class="store-address">Avenida Tito Jaime 608, Tingo María, PE-HUC</div>
+                  <div class="store-availability">Normalmente está listo en 4 horas</div>
+                </div>
+                <div class="store-price">GRATIS</div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">Pago</div>
+        <div class="payment-description">Todas las transacciones son seguras y están encriptadas.</div>
+        <div class="delivery-options">
+          <div class="delivery-option2">
+            <input type="radio" name="payment" value="card" checked />
+            <label class="payment-option">Pago seguro con tarjeta, efectivo y transferencia</label>
+          </div>
+        </div>
+
+        <!-- Container para el formulario de pago embebido de Izipay -->
+        <div id="izipay-form-container" style="margin-top: 20px; display: none;"></div>
+
+        <!-- <div class="payment-info">
+          📱 <strong>Realiza tu pago fácil y rápido con Yape o Plin</strong><br />
+          📞 Abre tu App de Yape o Plin<br />
+          📱 Envía el pago al número: <strong>919 499 627</strong><br />
+          🏪 Nombre de la empresa: <strong>Kiosk Store S.A.C</strong><br />
+          📷 Toma captura de tu pantalla 📱<br />
+          📧 Envíala a nuestro WhatsApp: <strong>948 288 725</strong><br /><br />
+          ✅ Una vez confirmado el pago, procesaremos tu pedido de inmediato.
+        </div> -->
+
+        <button type="submit" class="continue-button">
+          Pagar ahora
+        </button>
+      </form>
+    </div>
+
+    <div class="right-section">
+      <div class="order-summary" id="cart"></div>
+
+      <div class="discount-code">
+        <input type="text" class="discount-input" placeholder="Código de descuento" />
+        <button type="button" class="discount-button">Aplicar</button>
+      </div>
+
+      <div class="order-totals">
+        <div class="total-line">
+          <span>Subtotal</span><span id="subtotal">S/ 0.00</span>
+        </div>
+        <div class="total-line">
+          <span id="shipping-method-text">Envío</span><span id="shipping-cost">S/ 6.00</span>
+        </div>
+        <div class="total-line final">
+          <span>Total</span><span id="total">PEN S/ 0.00</span>
         </div>
       </div>
     </div>
 
-    <!-- Script separado -->
-    <!-- Reemplazar esta línea -->
-    <!-- <script src="{% static 'checkout/js/checkout.js' %}"></script> -->
+    <div id="your-iframe-payment" style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 10000;
+        display: none;
+      ">
+      <div style="
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: white;
+          padding: 20px;
+          border-radius: 8px;
+          max-width: 500px;
+          width: 90%;
+        ">
+        <h3>Procesando pago...</h3>
+        <div id="payment-processing-container"></div>
+      </div>
+    </div>
+  </div>
 
-    <!-- Con estos archivos en orden -->
-    <!-- Scripts separados -->
-    <script src="{% static 'checkout/js/shopify-handler.js' %}"></script>
-    <script src="{% static 'checkout/js/izipay-handler.js' %}"></script>
-    <script src="{% static 'checkout/js/ui-manager.js' %}"></script>
-    <script src="{% static 'checkout/js/checkout-controller.js' %}"></script>
-  </body>
+  <script src="{% static 'checkout/js/delivery-toggle.js' %}"></script>
+  <script src="{% static 'checkout/js/peru-regions.js' %}"></script>
+  <script src="{% static 'checkout/js/shopify-handler.js' %}"></script>
+  <script src="{% static 'checkout/js/izipay-handler.js' %}"></script>
+  <script src="{% static 'checkout/js/ui-manager.js' %}"></script>
+  <script src="{% static 'checkout/js/checkout-controller.js' %}"></script>
+</body>
+
 </html>

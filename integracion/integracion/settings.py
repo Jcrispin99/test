@@ -34,7 +34,7 @@ ALLOWED_HOSTS = ['*']
 # --- INICIO DE LA SOLUCIÓN ---
 # Añade la URL de ngrok a los orígenes de confianza para las peticiones seguras (HTTPS)
 # ¡Recuerda! La URL de ngrok cambia cada vez que lo reinicias si usas la versión gratuita.
-CSRF_TRUSTED_ORIGINS = ['https://4e2fb25dceae.ngrok-free.app']
+CSRF_TRUSTED_ORIGINS = ['https://b8840a16e940.ngrok-free.app']
 # --- FIN DE LA SOLUCIÓN ---
 
 

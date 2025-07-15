@@ -1,153 +1,221 @@
-// Manejo específico para integración con Izipay
 class IzipayHandler {
   constructor() {
+    this.checkout = null;
+    this.token = null;
     this.izipayConfig = {
-      // Aquí irán las configuraciones de Izipay cuando las implementes
-      apiUrl: "/izipay/process/",
+      paymentLinkUrl: "/izipay/payment-link/",
       currency: "PEN",
+      merchantCode: "4004345",
+      publicKey: "VErethUtraQuxas57wuMuquprADrAHAb",
     };
   }
 
-  // Preparar datos específicos para Izipay
-  prepareIzipayPayment(orderData, totalAmount) {
-    return {
-      amount: totalAmount, // en centavos
-      currency: this.izipayConfig.currency,
-      customer: {
-        email: orderData.email,
-        first_name: orderData.shipping_address.first_name,
-        last_name: orderData.shipping_address.last_name,
-      },
-      billing_address: orderData.shipping_address,
-      order_reference: this.generateOrderReference(),
-      return_url: window.location.origin + "/checkout/success/",
-      cancel_url: window.location.origin + "/checkout/cancel/",
-    };
-  }
-
-  generateOrderReference() {
-    return (
-      "ORDER-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9)
-    );
-  }
-
-  // Método para cuando implementes el pago con Izipay
-  async processPayment(paymentData) {
+  /**
+   * Crear Payment Link usando la nueva API de Izipay
+   */
+  async createPaymentLink(orderData, billingData, shippingData) {
     try {
-      const response = await fetch(this.izipayConfig.apiUrl, {
+      const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]");
+      if (!csrfToken) {
+        throw new Error("CSRF token no encontrado en el formulario");
+      }
+
+      const orderNumber = orderData.orderNumber || `ORDER-${Date.now()}`;
+
+      const payload = {
+        amount: orderData.total,
+        orderNumber: orderNumber,
+        customerEmail: billingData.email,
+        customerName: `${billingData.firstName} ${billingData.lastName}`,
+        billing: billingData,
+        shipping: shippingData || billingData,
+        currency: this.izipayConfig.currency
+      };
+
+      const response = await fetch(this.izipayConfig.paymentLinkUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
-            .value,
+          "X-CSRFToken": csrfToken.value,
         },
-        body: JSON.stringify(paymentData),
+        body: JSON.stringify(payload),
       });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ Response error:", errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }      
+      const data = await response.json();
 
-      return await response.json();
+      if (data.success && data.paymentLink) {
+        this.redirectToPaymentLink(data.paymentLink);
+        return data;
+      } else {
+        throw new Error(data.error || "Error desconocido creando Payment Link");
+      }
     } catch (error) {
-      console.error("Error procesando pago con Izipay:", error);
+      console.error("❌ Error creando Payment Link:", error);
       throw error;
     }
   }
 
-  // Generar configuración para Izipay según documentación oficial
-  generateIzipayConfig(orderData, totalAmount) {
-    const transactionId = this.generateTransactionId();
+  /**
+   * Redirigir al usuario al Payment Link
+   */
+  redirectToPaymentLink(paymentLinkUrl) {
+    window.location.href = paymentLinkUrl;
+  }
+
+  /**
+   * Preparar datos de billing para el Payment Link
+   */
+  prepareBillingData(formData) {
+    const convertedState = this.getRegionNameFromCode(formData.billing_state);
     
     return {
-      config: {
-        transactionId: transactionId,
-        action: 'pay',
-        merchantCode: this.config.merchantCode,
-        order: {
-          orderNumber: transactionId,
-          currency: this.config.currency,
-          amount: (totalAmount / 100).toFixed(2), // Convertir de centavos
-          processType: 'AT',
-          merchantBuyerId: this.config.merchantCode,
-          dateTimeTransaction: Date.now() + '000',
-        },
-        billing: {
-          firstName: orderData.shipping_address.first_name,
-          lastName: orderData.shipping_address.last_name,
-          email: orderData.email,
-          phoneNumber: '', // Agregar campo teléfono al formulario
-          street: orderData.shipping_address.address1,
-          city: orderData.shipping_address.city,
-          state: orderData.shipping_address.province,
-          country: 'PE',
-          postalCode: orderData.shipping_address.zip,
-          documentType: 'DNI', // Agregar campo documento al formulario
-          document: '', // Agregar campo documento al formulario
-        },
-        render: {
-          typeForm: 'pop-up' // Modo popup según tu preferencia
-        }
-      }
+      firstName: formData.billing_first_name || "Test",
+      lastName: formData.billing_last_name || "User",
+      email: formData.billing_email || "test@example.com",
+      phoneNumber: formData.billing_phone || "987654321",
+      street: formData.billing_address || "Av Test 123",
+      city: formData.billing_city || "Lima",
+      state: convertedState || "Lima",
+      country: "PE",
+      postalCode: formData.billing_postal_code || "15001",
+      documentType: "DNI",
+      document: formData.billing_document || "12345678"
     };
   }
 
-  // Solicitar token de sesión al backend
-  async requestSessionToken(iziConfig) {
+  /**
+   * Preparar datos de shipping para el Payment Link
+   */
+  prepareShippingData(formData) {
+    if (formData.delivery_option === 'pickup') {
+      console.log("📦 Delivery option: pickup - usando datos de billing para shipping");
+      return this.prepareBillingData(formData);
+    }
+    
+    const convertedState = this.getRegionNameFromCode(formData.shipping_state);
+    
+    return {
+      firstName: formData.shipping_first_name || formData.billing_first_name || "Test",
+      lastName: formData.shipping_last_name || formData.billing_last_name || "User",
+      email: formData.billing_email || "test@example.com",
+      phoneNumber: formData.shipping_phone || formData.billing_phone || "987654321",
+      street: formData.shipping_address || formData.billing_address || "Av Test 123",
+      city: formData.shipping_city || formData.billing_city || "Lima",
+      state: convertedState || "Lima",
+      country: "PE",
+      postalCode: formData.shipping_postal_code || formData.billing_postal_code || "15001",
+      documentType: "DNI",
+      document: formData.billing_document || "12345678"
+    };
+  }
+
+  /**
+   * Procesar pago usando Payment Link API
+   */
+  async processPayment(paymentData) {
     try {
-      const response = await fetch(this.config.tokenEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-        },
-        body: JSON.stringify({
-          transactionId: iziConfig.config.transactionId,
-          orderNumber: iziConfig.config.order.orderNumber,
-          amount: iziConfig.config.order.amount
-        })
-      });
+      const { orderData, formData, totalAmount } = paymentData;
       
-      const result = await response.json();
-      return result.token;
+      const billingData = this.prepareBillingData(formData);
+      const shippingData = this.prepareShippingData(formData);
+      
+      const paymentOrderData = {
+        ...orderData,
+        total: totalAmount,
+        orderNumber: orderData.orderNumber || `ORDER-${Date.now()}`
+      };
+      
+      const result = await this.createPaymentLink(paymentOrderData, billingData, shippingData);
+      return result;
+      
     } catch (error) {
-      console.error('Error obteniendo token de Izipay:', error);
+      console.error("❌ Error procesando pago:", error);
+      this.onPaymentError({ error: error.message });
       throw error;
     }
   }
 
-  // Procesar pago con Izipay
-  async processPayment(orderData, totalAmount) {
-    try {
-      // 1. Generar configuración
-      const iziConfig = this.generateIzipayConfig(orderData, totalAmount);
-      
-      // 2. Obtener token de sesión
-      const sessionToken = await this.requestSessionToken(iziConfig);
-      
-      // 3. Inicializar Izipay
-      const checkout = new Izipay({ config: iziConfig });
-      
-      // 4. Mostrar formulario popup
-      return new Promise((resolve, reject) => {
-        const callbackResponsePayment = (response) => {
-          if (response.status === 'PAID') {
-            resolve(response);
-          } else {
-            reject(new Error('Pago no completado'));
-          }
-        };
-        
-        checkout.LoadForm({
-          authorization: sessionToken,
-          keyRSA: 'TU_KEY_RSA', // Configurar en settings
-          callbackResponse: callbackResponsePayment
-        });
-      });
-      
-    } catch (error) {
-      console.error('Error procesando pago con Izipay:', error);
-      throw error;
-    }
+  /**
+   * Manejar éxito del pago (para compatibilidad con checkout-controller)
+   */
+  onPaymentSuccess(response) {
+    console.log("✅ Pago exitoso (Payment Link):", response);
   }
 
-  generateTransactionId() {
-    return 'TXN-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+  onPaymentError(response) {
+    console.error("❌ Error en pago (Payment Link):", response);
+    alert(`Error en el pago: ${response.error || "Error desconocido"}`);
+  }
+
+  generateOrderReference() {
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 1000);
+    return `ORDER-${timestamp}-${random}`;
+  }
+
+  getRegionNameFromCode(code) {
+    const regionMapping = {
+      "AMA": "Amazonas",
+      "ANC": "Áncash", 
+      "APU": "Apurímac",
+      "ARE": "Arequipa",
+      "AYA": "Ayacucho",
+      "CAJ": "Cajamarca",
+      "CAL": "Callao",
+      "CUS": "Cusco",
+      "HUV": "Huancavelica",
+      "HUC": "Huánuco",
+      "ICA": "Ica",
+      "JUN": "Junín",
+      "LAL": "La Libertad",
+      "LAM": "Lambayeque",
+      "LIM": "Lima",
+      "LOR": "Loreto",
+      "MDD": "Madre de Dios",
+      "MOQ": "Moquegua",
+      "PAS": "Pasco",
+      "PIU": "Piura",
+      "PUN": "Puno",
+      "SAM": "San Martín",
+      "TAC": "Tacna",
+      "TUM": "Tumbes",
+      "UCA": "Ucayali"
+    };
+    
+    return regionMapping[code] || code;
+  }
+
+  async generateToken() {
+    throw new Error("Método no disponible en Payment Link API");
+  }  
+  async initializeCheckout() {
+    throw new Error("Método no disponible en Payment Link API");
+  }
+
+  showPaymentForm() {
+    throw new Error("Método no disponible en Payment Link API");
+  }
+
+  handlePaymentResponse() {
+    throw new Error("Método no disponible en Payment Link API");
+  }
+
+  convertToAmountFormat() {
+    throw new Error("Método no disponible en Payment Link API");
+  }
+
+  prepareIzipayPayment(orderData, totalAmount) {
+    return this.processPayment({ orderData, totalAmount });
+  }
+
+  async generatePaymentLink(orderData, billingData, shippingData) {
+    return this.createPaymentLink(orderData, billingData, shippingData);
   }
 }
+
+window.izipayHandler = new IzipayHandler();
