@@ -331,14 +331,36 @@ class IzipayWebhookView(View):
                 
             transaction.save()
             
-            # Si el pago fue exitoso, actualizar orden de Shopify
-            if payment_link_state == '3' and transaction.shopify_order_id:  # TERMINADO_EXITO
-                self.update_shopify_order(transaction.shopify_order_id, 'paid')
+            # Determinar etiqueta basada en el estado de Izipay
+            estado_etiqueta = self.obtener_etiqueta_por_estado_izipay(payment_link_state)
+            
+            # Si hay orden de Shopify asociada, procesar automáticamente
+            if transaction.shopify_order_id:
+                print(f"🔄 Procesando actualización automática para orden {transaction.shopify_order_id}")
+                print(f"📊 Estado: {payment_link_state} -> Etiqueta: {estado_etiqueta}")
+                
+                # Si el pago fue exitoso, marcar como pagado
+                if payment_link_state == '3':  # TERMINADO_EXITO
+                    print(f"✅ Pago exitoso - Marcando orden como pagada")
+                    self.update_shopify_order(transaction.shopify_order_id, 'paid')
+                else:
+                    # Para otros estados, solo actualizar la etiqueta
+                    print(f"📝 Actualizando etiqueta sin marcar como pagada")
+                    self.actualizar_solo_etiqueta_shopify(transaction.shopify_order_id, estado_etiqueta)
+                
+                # Agregar comentario automático sobre el estado del pago
+                print(f"💬 Agregando comentario automático")
+                self.agregar_comentario_pago_automatico(transaction.shopify_order_id, transaction, estado_etiqueta)
+            else:
+                print(f"ℹ️ Transacción sin orden de Shopify asociada")
             
             return JsonResponse({
                 'success': True,
                 'message': f'Estado actualizado de {old_state} a {payment_link_state}',
-                'transaction_id': transaction_id
+                'transaction_id': transaction_id,
+                'etiqueta_aplicada': estado_etiqueta,
+                'shopify_order_id': transaction.shopify_order_id,
+                'procesamiento_automatico': bool(transaction.shopify_order_id)
             })
             
         except Exception as e:
@@ -396,71 +418,99 @@ class IzipayWebhookView(View):
                     print(f"ℹ️  La orden {order_id} ya está marcada como pagada")
                     return True
                 
-                # Crear transacción de pago en Shopify usando el enfoque correcto
-                def crear_transaccion_en_shopify(order_id, monto, moneda="PEN", gateway="Izipay"):
-                    # URL para crear transacción de pago
-                    url = f"{store_url}/admin/api/2023-10/orders/{order_id}/transactions.json"
+                # Marcar orden como pagada usando GraphQL (más eficiente que REST)
+                def marcar_orden_como_pagada_graphql(order_id):
+                    """Usa GraphQL orderMarkAsPaid para marcar orden como pagada"""
+                    
+                    # Convertir order_id numérico a Global ID de Shopify
+                    global_order_id = f"gid://shopify/Order/{order_id}"
+                    
+                    # Mutation GraphQL para marcar como pagada
+                    mutation = """
+                    mutation($orderId: ID!) {
+                        orderMarkAsPaid(input: { id: $orderId }) {
+                            order {
+                                id
+                                displayFinancialStatus
+                                financialStatus
+                                name
+                            }
+                            userErrors {
+                                field
+                                message
+                            }
+                        }
+                    }
+                    """
+                    
+                    variables = {
+                        "orderId": global_order_id
+                    }
                     
                     payload = {
-                        "transaction": {
-                            "kind": "sale",  # Transacción directa de venta
-                            "status": "success",
-                            "amount": str(monto),
-                            "currency": moneda,
-                            "gateway": gateway
-                        }
+                        "query": mutation,
+                        "variables": variables
                     }
                     
-                    print(f"💳 Creando transacción de pago para orden {order_id}")
-                    print(f"🔗 URL transacción: {url}")
-                    print(f"📦 Payload: {payload}")
+                    # URL GraphQL endpoint
+                    graphql_url = f"{store_url}/admin/api/2023-10/graphql.json"
                     
-                    response = requests.post(url, json=payload, headers=headers, timeout=30)
-                    print(f"📊 Shopify API Response: {response.status_code}")
+                    print(f"🔄 Marcando orden {order_id} como pagada via GraphQL")
+                    print(f"🔗 URL GraphQL: {graphql_url}")
+                    print(f"🆔 Global ID: {global_order_id}")
                     
-                    if response.status_code == 201:
-                        transaction_data = response.json()
-                        transaction_id = transaction_data.get('transaction', {}).get('id')
-                        financial_status = transaction_data.get('transaction', {}).get('status')
-                        print(f"✅ Transacción creada exitosamente: ID {transaction_id}")
+                    response = requests.post(graphql_url, json=payload, headers=headers, timeout=30)
+                    print(f"📊 Respuesta GraphQL: {response.status_code}")
+                    
+                    if response.status_code == 200:
+                        result = response.json()
+                        
+                        # Verificar si hay errores en la respuesta
+                        if 'errors' in result:
+                            print(f"❌ Errores GraphQL: {result['errors']}")
+                            return False
+                        
+                        # Verificar datos de la mutación
+                        order_data = result.get('data', {}).get('orderMarkAsPaid', {})
+                        user_errors = order_data.get('userErrors', [])
+                        
+                        if user_errors:
+                            print(f"❌ Errores de usuario: {user_errors}")
+                            return False
+                        
+                        # Éxito
+                        order_info = order_data.get('order', {})
+                        financial_status = order_info.get('displayFinancialStatus', 'unknown')
+                        order_name = order_info.get('name', order_id)
+                        
+                        print(f"✅ Orden {order_name} marcada como pagada exitosamente")
                         print(f"💰 Estado financiero: {financial_status}")
                         return True
+                        
                     else:
-                        error_data = response.text
                         try:
-                            error_json = response.json()
-                            error_data = error_json
+                            error_data = response.json()
                         except:
-                            pass
-                        print(f"❌ Error creando transacción: {response.status_code}")
-                        print(f"   Respuesta: {error_data}")
+                            error_data = response.text
+                        print(f"❌ Error HTTP en GraphQL: {response.status_code}")
+                        print(f"   Detalle: {error_data}")
                         return False
                 
-                # Ejecutar la creación de transacción
-                exito = crear_transaccion_en_shopify(order_id, total_price)
+                # Ejecutar actualización usando GraphQL (método recomendado)
+                print(f"🚀 Marcando orden {order_id} como pagada usando GraphQL orderMarkAsPaid")
                 
-                if exito:
-                    print(f"✅ Orden Shopify actualizada exitosamente")
+                exito_graphql = marcar_orden_como_pagada_graphql(order_id)
+                
+                if exito_graphql:
+                    # Actualizar etiqueta a "pagada" después del éxito
+                    self.actualizar_etiqueta_estado_pago(order_id, "pagada", headers, store_url, order_data)
+                    print(f"✅ Orden actualizada exitosamente via GraphQL")
                     return True
                 else:
-                    # Como fallback, marcar con tag
-                    print(f"⚠️  Usando fallback: marcar orden con tag")
-                    fallback_update = {
-                        'order': {
-                            'id': order_id,
-                            'tags': order_data.get('tags', '') + ',izipay-paid'
-                        }
-                    }
-                    
-                    order_update_url = f"{store_url}/admin/api/2023-10/orders/{order_id}.json"
-                    fallback_response = requests.put(order_update_url, json=fallback_update, headers=headers, timeout=30)
-                    
-                    if fallback_response.status_code == 200:
-                        print(f"✅ Orden marcada con tag de pago Izipay como fallback")
-                        return True
-                    else:
-                        print(f"❌ Error en fallback: {fallback_response.status_code}")
-                        return False
+                    # Si GraphQL falla, actualizar etiqueta a "no-pagada" 
+                    self.actualizar_etiqueta_estado_pago(order_id, "no-pagada", headers, store_url, order_data)
+                    print(f"⚠️ GraphQL falló, orden marcada como no-pagada")
+                    return False
             else:
                 print(f"ℹ️  Estado {status} no requiere transacción")
                 return True
@@ -469,6 +519,269 @@ class IzipayWebhookView(View):
             print(f"❌ Error actualizando orden Shopify: {e}")
             import traceback
             traceback.print_exc()
+            return False
+
+    def actualizar_etiqueta_estado_pago(self, order_id, estado_pago, headers, store_url, order_data):
+        """
+        Actualiza la etiqueta de estado de pago de manera dinámica
+        Estados posibles: 'pagada', 'no-pagada', 'pendiente', 'cancelada'
+        """
+        try:
+            # Obtener tags actuales y limpiar etiquetas de estado previas
+            tags_actuales = order_data.get('tags', '')
+            
+            # Remover etiquetas de estado previas
+            etiquetas_estado = ['pagada', 'no-pagada', 'pendiente', 'cancelada', 'izipay-paid', 'graphql-fallback']
+            tags_limpiados = tags_actuales
+            
+            for etiqueta in etiquetas_estado:
+                tags_limpiados = tags_limpiados.replace(f',{etiqueta}', '').replace(etiqueta, '')
+            
+            # Limpiar comas duplicadas o iniciales
+            tags_limpiados = tags_limpiados.strip(',').replace(',,', ',')
+            
+            # Agregar nueva etiqueta de estado
+            if tags_limpiados:
+                nuevas_tags = f"{tags_limpiados},{estado_pago}"
+            else:
+                nuevas_tags = estado_pago
+            
+            # Actualizar orden con nueva etiqueta
+            order_update = {
+                'order': {
+                    'id': order_id,
+                    'tags': nuevas_tags
+                }
+            }
+            
+            order_update_url = f"{store_url}/admin/api/2023-10/orders/{order_id}.json"
+            response = requests.put(order_update_url, json=order_update, headers=headers, timeout=30)
+            
+            if response.status_code == 200:
+                print(f"🏷️  Etiqueta actualizada: '{estado_pago}' para orden {order_id}")
+                return True
+            else:
+                print(f"⚠️ Error actualizando etiqueta: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Error en actualizar_etiqueta_estado_pago: {e}")
+            return False
+
+    def obtener_etiqueta_por_estado_izipay(self, estado_izipay):
+        """
+        Mapea el estado numérico de Izipay a una etiqueta descriptiva
+        Estados Izipay:
+        - 1: GENERADO -> 'pendiente'
+        - 2: EN_PROCESO -> 'pendiente' 
+        - 3: TERMINADO_EXITO -> 'pagada'
+        - 4: TERMINADO_ERROR -> 'cancelada'
+        - 5: EXPIRADO -> 'cancelada'
+        """
+        estados_mapa = {
+            '1': 'pendiente',    # GENERADO
+            '2': 'pendiente',    # EN_PROCESO
+            '3': 'pagada',       # TERMINADO_EXITO
+            '4': 'cancelada',    # TERMINADO_ERROR
+            '5': 'cancelada'     # EXPIRADO
+        }
+        
+        estado_str = str(estado_izipay)
+        etiqueta = estados_mapa.get(estado_str, 'pendiente')
+        
+        print(f"🏷️  Estado Izipay {estado_str} -> Etiqueta: '{etiqueta}'")
+        return etiqueta
+    
+    def actualizar_solo_etiqueta_shopify(self, order_id, nueva_etiqueta):
+        """
+        Actualiza solo la etiqueta de una orden en Shopify sin marcar como pagada
+        """
+        try:
+            print(f"🏷️  Actualizando solo etiqueta para orden {order_id}: '{nueva_etiqueta}'")
+            
+            # Obtener credenciales de Shopify
+            shopify_credentials = ShopifyCredential.objects.filter().first()
+            if not shopify_credentials:
+                print("❌ No hay credenciales de Shopify configuradas")
+                return False
+            
+            headers = {
+                'X-Shopify-Access-Token': shopify_credentials.access_token,
+                'Content-Type': 'application/json'
+            }
+            
+            # Construir URL de la API de Shopify
+            store_url = shopify_credentials.store_url
+            if not store_url.startswith('https'):
+                if store_url.startswith('http://'):
+                    store_url = store_url.replace('http://', 'https://')
+                else:
+                    store_url = f"https://{shopify_credentials.store_name}.myshopify.com"
+            
+            # Obtener datos actuales de la orden
+            order_url = f"{store_url}/admin/api/2023-10/orders/{order_id}.json"
+            order_response = requests.get(order_url, headers=headers, timeout=30)
+            
+            if order_response.status_code != 200:
+                print(f"❌ Error obteniendo orden: {order_response.status_code}")
+                return False
+            
+            order_data = order_response.json().get('order', {})
+            
+            # Actualizar etiqueta usando la función helper
+            return self.actualizar_etiqueta_estado_pago(order_id, nueva_etiqueta, headers, store_url, order_data)
+            
+        except Exception as e:
+            print(f"❌ Error en actualizar_solo_etiqueta_shopify: {e}")
+            return False
+
+    def agregar_comentario_pago_automatico(self, order_id, transaction, estado_etiqueta):
+        """
+        Agregar comentario automático con información del pago cuando cambia el estado
+        """
+        try:
+            # Obtener credenciales de Shopify
+            shopify_credentials = ShopifyCredential.objects.filter().first()
+            if not shopify_credentials:
+                print("❌ No hay credenciales de Shopify configuradas")
+                return False
+            
+            headers = {
+                'X-Shopify-Access-Token': shopify_credentials.access_token,
+                'Content-Type': 'application/json'
+            }
+            
+            # Construir URL de la API de Shopify
+            store_url = shopify_credentials.store_url
+            if not store_url.startswith('https'):
+                if store_url.startswith('http://'):
+                    store_url = store_url.replace('http://', 'https://')
+                else:
+                    store_url = f"https://{shopify_credentials.store_name}.myshopify.com"
+            
+            # Crear mensaje según el estado
+            estado_display = transaction.get_payment_link_state_display()
+            monto = transaction.amount
+            moneda = transaction.currency
+            fecha_creacion = transaction.created_at.strftime("%d/%m/%Y %H:%M")
+            fecha_webhook = transaction.webhook_received_at.strftime("%d/%m/%Y %H:%M") if transaction.webhook_received_at else "N/A"
+            
+            if estado_etiqueta == 'pagada':
+                mensaje = f"""✅ PAGO CONFIRMADO VÍA IZIPAY
+                
+El cliente ya realizó el pago de {monto} {moneda}.
+
+📊 Detalles del pago:
+• Estado: {estado_display} 
+• Monto: {monto} {moneda}
+• Fecha creación: {fecha_creacion}
+• Última actualización: {fecha_webhook}
+• Transaction ID: {transaction.transaction_id}
+
+🔗 Link de pago para verificación:
+{transaction.payment_link_url}
+
+ℹ️ El sistema Izipay confirma que este pago ha sido procesado exitosamente."""
+                
+            elif estado_etiqueta == 'pendiente':
+                mensaje = f"""⏳ PAGO PENDIENTE VÍA IZIPAY
+                
+El pago de {monto} {moneda} está en proceso.
+
+📊 Detalles:
+• Estado: {estado_display}
+• Monto: {monto} {moneda}  
+• Transaction ID: {transaction.transaction_id}
+• Última actualización: {fecha_webhook}
+
+🔗 Link de pago:
+{transaction.payment_link_url}
+
+ℹ️ El cliente puede completar el pago usando el link proporcionado."""
+                
+            elif estado_etiqueta == 'cancelada':
+                mensaje = f"""❌ PAGO CANCELADO/EXPIRADO VÍA IZIPAY
+                
+El pago de {monto} {moneda} no fue completado.
+
+📊 Detalles:
+• Estado: {estado_display}
+• Monto: {monto} {moneda}
+• Transaction ID: {transaction.transaction_id}
+• Última actualización: {fecha_webhook}
+
+ℹ️ Será necesario generar un nuevo link de pago si el cliente desea continuar."""
+            else:
+                mensaje = f"""📋 ACTUALIZACIÓN DE PAGO VÍA IZIPAY
+                
+Estado del pago actualizado.
+
+📊 Detalles:
+• Estado: {estado_display}
+• Monto: {monto} {moneda}
+• Transaction ID: {transaction.transaction_id} 
+• Última actualización: {fecha_webhook}
+
+🔗 Link de pago:
+{transaction.payment_link_url}"""
+            
+            # Obtener la orden actual para agregar la nota
+            order_url = f"{store_url}/admin/api/2023-10/orders/{order_id}.json"
+            order_response = requests.get(order_url, headers=headers, timeout=30)
+            
+            if order_response.status_code == 200:
+                order_current = order_response.json().get('order', {})
+                current_note = order_current.get('note', '')
+                
+                # Agregar nuestro mensaje a las notas existentes
+                if current_note and not "VÍA IZIPAY" in current_note:
+                    nueva_nota = f"{current_note}\n\n---\n\n{mensaje}"
+                elif "VÍA IZIPAY" in current_note:
+                    # Reemplazar nota anterior de Izipay
+                    lines = current_note.split('\n')
+                    filtered_lines = []
+                    skip_izipay_section = False
+                    
+                    for line in lines:
+                        if "VÍA IZIPAY" in line:
+                            skip_izipay_section = True
+                            continue
+                        elif line.strip() == "---" and skip_izipay_section:
+                            skip_izipay_section = False
+                            continue
+                        elif not skip_izipay_section:
+                            filtered_lines.append(line)
+                    
+                    base_note = '\n'.join(filtered_lines).strip()
+                    if base_note:
+                        nueva_nota = f"{base_note}\n\n---\n\n{mensaje}"
+                    else:
+                        nueva_nota = mensaje
+                else:
+                    nueva_nota = mensaje
+                
+                # Actualizar la orden con la nueva nota
+                update_with_note = {
+                    'order': {
+                        'id': order_id,
+                        'note': nueva_nota
+                    }
+                }
+                
+                note_response = requests.put(order_url, json=update_with_note, headers=headers, timeout=30)
+                
+                if note_response.status_code == 200:
+                    print(f"💬 Comentario automático agregado a la orden {order_id} - Estado: {estado_etiqueta}")
+                    return True
+                else:
+                    print(f"⚠️ Error agregando comentario automático: {note_response.status_code}")
+                    return False
+            else:
+                print(f"❌ Error obteniendo orden para comentario: {order_response.status_code}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Error en agregar_comentario_pago_automatico: {e}")
             return False
 
 
@@ -500,7 +813,6 @@ class PaymentLinkSearchView(View):
             
             transaction_id = f"100{str(datetime.now().microsecond)[:3]}"
             
-            # 1. Generar token
             token_payload = {
                 "requestSource": "ECOMMERCE", 
                 "merchantCode": credential.merchant_code,
@@ -528,7 +840,6 @@ class PaymentLinkSearchView(View):
             
             session_token = token_data.get('response', {}).get('token')
             
-            # 2. Consultar Payment Link
             search_payload = {
                 "paymentLinkId": payment_link_id,
                 "merchantCode": credential.merchant_code,
@@ -550,13 +861,11 @@ class PaymentLinkSearchView(View):
             if search_response.status_code == 200 and search_data.get('code') == '00':
                 payment_link_info = search_data.get('response', {})
                 
-                # Actualizar estado si es diferente
                 if payment_link_info.get('state') != transaction.payment_link_state:
                     old_state = transaction.payment_link_state
                     transaction.payment_link_state = payment_link_info.get('state')
                     transaction.save()
                     
-                    # Si el pago fue exitoso, actualizar orden de Shopify
                     if payment_link_info.get('state') == '3' and transaction.shopify_order_id:
                         self.update_shopify_order(transaction.shopify_order_id, 'paid')
                 
@@ -596,19 +905,16 @@ class PaymentLinkSearchView(View):
         try:
             print(f"📦 Actualizando orden Shopify {order_id} a estado: {status}")
             
-            # Obtener credenciales de Shopify
             shopify_credentials = ShopifyCredential.objects.filter().first()
             if not shopify_credentials:
                 print("❌ No hay credenciales de Shopify configuradas")
                 return False
             
-            # Configurar headers para Shopify API
             headers = {
                 'X-Shopify-Access-Token': shopify_credentials.access_token,
                 'Content-Type': 'application/json'
             }
             
-            # Construir URL de la API de Shopify
             store_url = shopify_credentials.store_url
             if not store_url.startswith('https'):
                 if store_url.startswith('http://'):
@@ -617,7 +923,6 @@ class PaymentLinkSearchView(View):
                     store_url = f"https://{shopify_credentials.store_name}.myshopify.com"
             
             if status == 'paid':
-                # Obtener detalles de la orden
                 order_url = f"{store_url}/admin/api/2023-10/orders/{order_id}.json"
                 order_response = requests.get(order_url, headers=headers, timeout=30)
                 
@@ -626,9 +931,8 @@ class PaymentLinkSearchView(View):
                     return False
                 
                 order_data = order_response.json().get('order', {})
-                total_price = order_data.get('total_price', '0.00')
+                order_data.get('total_price', '0.00')
                 
-                # Marcar la orden como pagada usando tags
                 order_update_data = {
                     'order': {
                         'id': order_id,
@@ -697,3 +1001,121 @@ class PaymentTransactionListView(View):
             'transactions': transactions_data,
             'total': len(transactions_data)
         })
+
+@method_decorator(csrf_exempt, name='dispatch')
+class TestGraphQLView(View):
+    """
+    Vista de prueba para testear la mutación GraphQL orderMarkAsPaid
+    """
+    
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            order_id = data.get('order_id', '5973851226407')
+            
+            print(f"🧪 === INICIANDO PRUEBA GRAPHQL ===")
+            print(f"📦 Orden ID: {order_id}")
+            
+            shopify_credentials = ShopifyCredential.objects.filter().first()
+            if not shopify_credentials:
+                return JsonResponse({'success': False, 'error': 'No hay credenciales de Shopify'}, status=500)
+            
+            headers = {
+                'X-Shopify-Access-Token': shopify_credentials.access_token,
+                'Content-Type': 'application/json'
+            }
+            
+            store_url = shopify_credentials.store_url
+            if not store_url.startswith('https'):
+                if store_url.startswith('http://'):
+                    store_url = store_url.replace('http://', 'https://')
+                else:
+                    store_url = f"https://{shopify_credentials.store_name}.myshopify.com"
+            
+            global_order_id = f"gid://shopify/Order/{order_id}"
+            
+            mutation = """
+            mutation($orderId: ID!) {
+                orderMarkAsPaid(input: { id: $orderId }) {
+                    order {
+                        id
+                        displayFinancialStatus
+                        financialStatus
+                        name
+                    }
+                    userErrors {
+                        field
+                        message
+                    }
+                }
+            }
+            """
+            
+            variables = {
+                "orderId": global_order_id
+            }
+            
+            payload = {
+                "query": mutation,
+                "variables": variables
+            }
+            
+            graphql_url = f"{store_url}/admin/api/2023-10/graphql.json"
+            
+            print(f"🔗 URL GraphQL: {graphql_url}")
+            print(f"🆔 Global ID: {global_order_id}")
+            print(f"📦 Payload: {json.dumps(payload, indent=2)}")
+            
+            response = requests.post(graphql_url, json=payload, headers=headers, timeout=30)
+            
+            print(f"📊 Status Code: {response.status_code}")
+            print(f"📄 Response: {response.text}")
+            
+            if response.status_code == 200:
+                result = response.json()
+                
+                if 'errors' in result:
+                    print(f"❌ Errores GraphQL: {result['errors']}")
+                    return JsonResponse({
+                        'success': False,
+                        'errors': result['errors'],
+                        'graphql_response': result
+                    })
+                
+                order_data = result.get('data', {}).get('orderMarkAsPaid', {})
+                user_errors = order_data.get('userErrors', [])
+                
+                if user_errors:
+                    print(f"❌ User Errors: {user_errors}")
+                    return JsonResponse({
+                        'success': False,
+                        'user_errors': user_errors,
+                        'graphql_response': result
+                    })
+                
+                order_info = order_data.get('order', {})
+                financial_status = order_info.get('displayFinancialStatus')
+                order_name = order_info.get('name')
+                
+                print(f"✅ ÉXITO: Orden {order_name} - Estado: {financial_status}")
+                
+                return JsonResponse({
+                    'success': True,
+                    'order_name': order_name,
+                    'financial_status': financial_status,
+                    'graphql_response': result,
+                    'message': f'Orden {order_name} marcada como pagada exitosamente'
+                })
+            else:
+                print(f"❌ Error HTTP: {response.status_code}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Error HTTP: {response.status_code}',
+                    'response_text': response.text
+                }, status=500)
+                
+        except Exception as e:
+            print(f"❌ Exception: {e}")
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
