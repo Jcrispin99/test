@@ -22,18 +22,13 @@ class UIManager {
 
   renderCartItems(items) {
     if (!this.cartElement) {
-      console.error('❌ [UIManager] cartElement no encontrado! Reintentando...');
-      this.initializeElements();
+      this.cartElement = document.getElementById("cart");
       if (!this.cartElement) {
-        console.error('❌ [UIManager] cartElement sigue sin encontrarse después del reinicio');
         return;
       }
     }
-    
-    if (!items || items.length === 0) {
-      console.log('⚠️ [UIManager] No hay items para renderizar');
-      return;
-    }
+
+    if (!items || items.length === 0) return;
 
     let subtotal = 0;
     this.cartElement.innerHTML = "";

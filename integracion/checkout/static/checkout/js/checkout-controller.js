@@ -9,41 +9,24 @@ class CheckoutController {
   }
 
   init() {
-    console.log('🚀 [CheckoutController] Inicializando...');
-    console.log('🚀 [CheckoutController] Estado del DOM:', document.readyState);
-    
-    if (document.readyState === 'loading') {
+    if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", () => {
-        console.log('🚀 [CheckoutController] DOM cargado, ejecutando loadInitialData');
         this.loadInitialData();
         this.setupEventListeners();
       });
     } else {
-      console.log('🚀 [CheckoutController] DOM ya está listo, ejecutando inmediatamente');
       this.loadInitialData();
       this.setupEventListeners();
     }
   }
 
   loadInitialData() {
-    console.log('📊 [CheckoutController] loadInitialData iniciado');
-    
     // Cargar datos de Shopify y renderizar
-    console.log('📊 [CheckoutController] Obteniendo items de Shopify...');
     const items = this.shopifyHandler.getOrderItems();
-    console.log('📊 [CheckoutController] Items obtenidos:', items);
-    
-    console.log('📊 [CheckoutController] Obteniendo info del cliente...');
     const customerInfo = this.shopifyHandler.getCustomerInfo();
-    console.log('📊 [CheckoutController] Info del cliente:', customerInfo);
 
-    console.log('📊 [CheckoutController] Renderizando items del carrito...');
     this.uiManager.renderCartItems(items);
-    
-    console.log('📊 [CheckoutController] Prellenando formulario...');
     this.uiManager.prefillForm(customerInfo);
-    
-    console.log('✅ [CheckoutController] loadInitialData completado');
   }
 
   setupEventListeners() {
@@ -75,7 +58,7 @@ class CheckoutController {
         // 4. Preparar datos para Izipay
         const totalAmount = this.shopifyHandler.calculateOrderTotal();
         const orderDataForIzipay = {
-          total: totalAmount.toString(),
+          total: totalAmount, // Ya viene como string con formato decimal
           orderNumber: `ORDER-${Date.now()}`,
         };
 

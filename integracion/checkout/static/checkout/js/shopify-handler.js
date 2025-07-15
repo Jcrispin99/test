@@ -5,49 +5,32 @@ class ShopifyHandler {
   }
 
   parseShopifyData() {
-    console.log('🔍 [ShopifyHandler] parseShopifyData iniciado');
-    console.log('🔍 [ShopifyHandler] URL actual:', window.location.href);
-    
-    const urlParams = new URLSearchParams(window.location.search);
-    const dataParam = urlParams.get("data");
-    console.log('🔍 [ShopifyHandler] Parámetro data encontrado:', !!dataParam);
-    console.log('🔍 [ShopifyHandler] Parámetro data (primeros 100 chars):', dataParam ? dataParam.substring(0, 100) + '...' : 'null');
-    
     try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const dataParam = urlParams.get("data");
       const decodedData = decodeURIComponent(dataParam || "{}");
-      console.log('🔍 [ShopifyHandler] Datos decodificados:', decodedData);
-      
-      const parsedData = JSON.parse(decodedData);
-      console.log('🔍 [ShopifyHandler] Datos parseados:', parsedData);
-      console.log('🔍 [ShopifyHandler] Número de items:', parsedData.items ? parsedData.items.length : 0);
-      console.log('🔍 [ShopifyHandler] Email del cliente:', parsedData.email);
-      
-      return parsedData;
+      return JSON.parse(decodedData);
     } catch (error) {
-      console.error('❌ [ShopifyHandler] Error parseando datos de Shopify:', error);
       return {};
     }
   }
 
   getOrderItems() {
-    const items = this.shopifyData?.items || [];
-    console.log('📦 [ShopifyHandler] getOrderItems() retorna:', items.length, 'items');
-    console.log('📦 [ShopifyHandler] Items detalle:', items);
-    return items;
+    return this.shopifyData?.items || [];
   }
 
   getCustomerInfo() {
-    const customerInfo = {
+    return {
       email: this.shopifyData?.email || null,
       customer: this.shopifyData?.customer || null,
     };
-    console.log('👤 [ShopifyHandler] getCustomerInfo() retorna:', customerInfo);
-    return customerInfo;
   }
 
   calculateOrderTotal() {
     const items = this.getOrderItems();
-    return items.reduce((total, item) => total + item.line_price, 0);
+    const totalInCents = items.reduce((total, item) => total + item.line_price, 0);
+    // Convertir de centavos a soles con 2 decimales
+    return (totalInCents / 100).toFixed(2);
   }
 
   // Preparar datos para enviar a Shopify
