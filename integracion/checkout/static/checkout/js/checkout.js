@@ -39,7 +39,6 @@ function renderCartItems() {
 }
 
 function prefillFormData() {
-  // Prellenar email si viene en los datos de la URL
   if (payload && payload.email) {
     const emailInput = document.querySelector('input[name="email"]');
     if (emailInput) {
@@ -47,7 +46,6 @@ function prefillFormData() {
     }
   }
 
-  // También puedes prellenar otros campos si vienen en la URL
   if (payload && payload.customer) {
     const firstNameInput = document.querySelector('input[name="first_name"]');
     const lastNameInput = document.querySelector('input[name="last_name"]');
@@ -62,71 +60,68 @@ function prefillFormData() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  renderCartItems();
-  prefillFormData();
+  if (typeof CheckoutController === "undefined" || !window.checkoutController) {
+    console.log("🔄 Modo legacy: inicializando checkout.js");
+    renderCartItems();
+    prefillFormData();
 
-  document
-    .getElementById("checkout-form")
-    .addEventListener("submit", async function (e) {
-      e.preventDefault();
+    document
+      .getElementById("checkout-form")
+      .addEventListener("submit", async function (e) {
+        e.preventDefault();
 
-      const formData = new FormData(this);
-      const data = Object.fromEntries(formData.entries());
+        const formData = new FormData(this);
+        const data = Object.fromEntries(formData.entries());
 
-      data.email = document.querySelector('[name="email"]')?.value || "";
-      data.items = payload.items || [];
+        data.email = document.querySelector('[name="email"]')?.value || "";
+        data.items = payload.items || [];
 
-      const submitBtn = this.querySelector('button[type="submit"]');
-      const originalText = submitBtn.textContent;
-      submitBtn.textContent = "Procesando...";
-      submitBtn.disabled = true;
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = "Procesando...";
+        submitBtn.disabled = true;
 
-      try {
-        const response = await fetch("/checkout/process/", {
-          // ✅ URL corregida
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
-              .value,
-          },
-          body: JSON.stringify(data),
-        });
+        try {
+          const response = await fetch("/checkout/process/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
+                .value,
+            },
+            body: JSON.stringify(data),
+          });
 
-        const result = await response.json();
-        if (result.success) {
-          alert("¡Pedido procesado exitosamente!");
-          // ✅ Limpiar carrito después del éxito
-          clearCart();
-          // ✅ Opcional: redirigir a página de confirmación
-          // window.location.href = '/checkout/success/';
-        } else {
-          alert("Error: " + (result.error || "Error desconocido"));
+          const result = await response.json();
+          if (result.success) {
+            alert("¡Pedido procesado exitosamente!");
+            clearCart();            // ✅ Opcional: redirigir a página de confirmación
+            // window.location.href = '/checkout/success/';
+          } else {
+            alert("Error: " + (result.error || "Error desconocido"));
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          alert("Error de conexión. Intenta nuevamente.");
+        } finally {
+          submitBtn.textContent = originalText;
+          submitBtn.disabled = false;
         }
-      } catch (error) {
-        console.error("Error:", error);
-        alert("Error de conexión. Intenta nuevamente.");
-      } finally {
-        submitBtn.textContent = originalText;
-        submitBtn.disabled = false;
-      }
-    });
+      });
+  } else {
+    console.log("✅ CheckoutController detectado, checkout.js no se ejecutará");
+  }
 });
 
-// ✅ Nueva función para limpiar carrito
 function clearCart() {
-  // Limpiar el carrito visual
   const cartDiv = document.getElementById("cart");
   cartDiv.innerHTML = "";
 
-  // Resetear totales
   document.getElementById("subtotal").textContent = "S/ 0.00";
   document.getElementById("total").textContent = "PEN S/ 0.00";
 
-  // Limpiar datos del payload
   payload.items = [];
 
-  // Opcional: actualizar URL para remover parámetros del carrito
   const url = new URL(window.location);
   url.searchParams.delete("data");
   window.history.replaceState({}, document.title, url.pathname);

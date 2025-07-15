@@ -1,10 +1,9 @@
-// Controlador principal que coordina Shopify, Izipay y UI
 class CheckoutController {
   constructor() {
     this.shopifyHandler = new ShopifyHandler();
     this.izipayHandler = new IzipayHandler();
     this.uiManager = new UIManager();
-
+    this.isProcessing = false;
     this.init();
   }
 
@@ -21,12 +20,12 @@ class CheckoutController {
   }
 
   loadInitialData() {
-    // Cargar datos de Shopify y renderizar
     const items = this.shopifyHandler.getOrderItems();
     const customerInfo = this.shopifyHandler.getCustomerInfo();
 
     this.uiManager.renderCartItems(items);
     this.uiManager.prefillForm(customerInfo);
+    this.shopifyHandler.autoFillForm();
   }
 
   setupEventListeners() {
@@ -37,91 +36,62 @@ class CheckoutController {
   }
 
   async processOrder() {
+    if (this.isProcessing) {
+      console.log("⚠️ Orden ya en proceso, ignorando envío duplicado");
+      return;
+    }
+
+    this.isProcessing = true;
     this.uiManager.setLoadingState(true);
 
     try {
-      console.log("🚀 Iniciando proceso de orden...");
-
-      // 1. Obtener datos del formulario
       const formData = new FormData(this.uiManager.form);
       const orderData = Object.fromEntries(formData.entries());
-
-      // 2. Preparar orden para Shopify
       const shopifyOrder = this.shopifyHandler.prepareShopifyOrder(orderData);
-
-      // 3. Crear orden en Shopify
       const shopifyResult = await this.createShopifyOrder(shopifyOrder);
 
       if (shopifyResult.success) {
-        console.log("✅ Orden creada en Shopify exitosamente");
-
-        // 4. Preparar datos para Izipay
         const totalAmount = this.shopifyHandler.calculateOrderTotal();
         const orderDataForIzipay = {
-          total: totalAmount, // Ya viene como string con formato decimal
+          total: totalAmount,
           orderNumber: `ORDER-${Date.now()}`,
+          productDescription: `Orden de checkout - ${new Date().toLocaleDateString()}`,
         };
 
-        const billingData = this.izipayHandler.prepareBillingData(formData);
+        const billingData = this.prepareBillingData(formData);
+        const shippingData = this.prepareShippingData(formData);
 
-        console.log("💳 Iniciando proceso de pago con Izipay...");
-
-        // 5. Inicializar y mostrar formulario de Izipay
-        const initialized = await this.izipayHandler.initializeCheckout(
+        const paymentLinkResult = await this.izipayHandler.generatePaymentLink(
           orderDataForIzipay,
-          billingData
+          billingData,
+          shippingData
         );
 
-        if (initialized) {
-          // Mostrar formulario de pago
-          this.izipayHandler.showPaymentForm((paymentResponse) => {
-            this.handlePaymentCallback(paymentResponse, shopifyResult);
-          });
-
-          this.uiManager.showMessage(
-            "Orden creada exitosamente. Completa tu pago..."
-          );
+        if (paymentLinkResult.success && paymentLinkResult.paymentLink) {
+          this.uiManager.showMessage("Redirigiendo al procesador de pagos...", "success");
         } else {
-          throw new Error("No se pudo inicializar el formulario de pago");
+          throw new Error("No se pudo generar el enlace de pago");
         }
       } else {
-        this.uiManager.showMessage(
-          "Error: " + (shopifyResult.error || "Error desconocido"),
-          true
-        );
+        this.uiManager.showMessage("Error: " + (shopifyResult.error || "Error desconocido"), true);
       }
     } catch (error) {
       console.error("❌ Error en el proceso:", error);
-      this.uiManager.showMessage(
-        "Error de conexión. Intenta nuevamente.",
-        true
-      );
+      this.uiManager.showMessage("Error de conexión. Intenta nuevamente.", true);
     } finally {
       this.uiManager.setLoadingState(false);
+      this.isProcessing = false;
     }
   }
 
   handlePaymentCallback(paymentResponse, shopifyResult) {
-    console.log("🔄 Procesando callback de pago...", paymentResponse);
-
     if (paymentResponse && paymentResponse.success) {
-      console.log("🎉 Pago completado exitosamente");
-
-      // Mostrar mensaje de éxito
-      this.uiManager.showMessage(
-        "¡Pago realizado exitosamente! Tu orden ha sido procesada."
-      );
-
-      // Limpiar el checkout
+      this.uiManager.showMessage("¡Pago realizado exitosamente! Tu orden ha sido procesada.");
       setTimeout(() => {
         this.clearCheckout();
       }, 3000);
     } else {
-      console.log("❌ Error en el pago");
-      this.uiManager.showMessage(
-        "Error en el pago. Por favor, intenta nuevamente.",
-        true
-      );
+      this.uiManager.showMessage("Error en el pago. Por favor, intenta nuevamente.", true);
     }
   }
 
@@ -147,14 +117,47 @@ class CheckoutController {
   clearCheckout() {
     this.uiManager.clearCart();
     this.shopifyHandler.clearShopifyData();
+  }
 
-    // Opcional: recargar la página o redireccionar
-    // window.location.reload();
+  prepareBillingData(formData) {
+    return {
+      firstName: formData.get('first_name') || '',
+      lastName: formData.get('last_name') || '',
+      email: formData.get('email') || '',
+      phone: formData.get('phone') || '',
+      address: formData.get('address') || '',
+      district: formData.get('district') || '',
+      city: formData.get('city') || '',
+      region: formData.get('region') || '',
+      zipCode: formData.get('zip_code') || ''
+    };
+  }
+
+  prepareShippingData(formData) {
+    const deliveryMethod = formData.get('delivery_method');
+    
+    if (deliveryMethod === 'shipping') {
+      return {
+        firstName: formData.get('shipping_first_name') || formData.get('first_name') || '',
+        lastName: formData.get('shipping_last_name') || formData.get('last_name') || '',
+        phone: formData.get('shipping_phone') || formData.get('phone') || '',
+        address: formData.get('shipping_address') || '',
+        district: formData.get('shipping_district') || '',
+        city: formData.get('shipping_city') || '',
+        region: formData.get('shipping_region') || '',
+        zipCode: formData.get('shipping_zip_code') || ''
+      };
+    }
+    
+    return {};
   }
 }
 
-// Inicializar la aplicación cuando el DOM esté listo
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("🚀 Inicializando CheckoutController...");
-  const checkoutApp = new CheckoutController();
+  if (!window.checkoutController) {
+    console.log("🚀 Inicializando CheckoutController...");
+    window.checkoutController = new CheckoutController();
+  } else {
+    console.warn("⚠️ CheckoutController ya está inicializado");
+  }
 });

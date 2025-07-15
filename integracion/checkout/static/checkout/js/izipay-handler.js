@@ -3,319 +3,274 @@ class IzipayHandler {
     this.checkout = null;
     this.token = null;
     this.izipayConfig = {
-      apiUrl: "/izipay/generate-token/",
+      paymentLinkUrl: "/izipay/payment-link/",
       currency: "PEN",
       merchantCode: "4004345",
       publicKey: "VErethUtraQuxas57wuMuquprADrAHAb",
     };
   }
 
-  async generateToken(orderData) {
+  /**
+   * Crear Payment Link usando la nueva API de Izipay
+   */
+  async createPaymentLink(orderData, billingData, shippingData) {
     try {
-      console.log("🔄 Generando token de Izipay...", orderData);
+      console.log("🔗 Creando Payment Link de Izipay...", orderData);
 
-      // PRUEBA: Enviar en centavos al token endpoint también
-      const amountInCents = this.convertToAmountFormat(orderData.total);
-      console.log(`💰 [Token] PRUEBA - Enviando en centavos: ${orderData.total} -> ${amountInCents}`);
+      const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]");
+      if (!csrfToken) {
+        throw new Error("CSRF token no encontrado en el formulario");
+      }
 
-      const response = await fetch(this.izipayConfig.apiUrl, {
+      // Generar orderNumber único si no existe
+      const orderNumber = orderData.orderNumber || `ORDER-${Date.now()}`;
+      console.log(`📦 Order Number: ${orderNumber}`);
+      console.log(`💰 Amount: ${orderData.total}`);
+
+      const payload = {
+        amount: orderData.total,
+        orderNumber: orderNumber,
+        customerEmail: billingData.email,
+        customerName: `${billingData.firstName} ${billingData.lastName}`,
+        billing: billingData,
+        shipping: shippingData || billingData,
+        currency: this.izipayConfig.currency
+      };
+
+      console.log("📤 Enviando payload para Payment Link:", payload);
+
+      const response = await fetch(this.izipayConfig.paymentLinkUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
-            .value,
+          "X-CSRFToken": csrfToken.value,
         },
-        body: JSON.stringify({
-          amount: amountInCents, // PRUEBA: Enviar en centavos al token
-          orderNumber: orderData.orderNumber || `ORDER-${Date.now()}`,
-        }),
+        body: JSON.stringify(payload),
       });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ Response error:", errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
 
       const data = await response.json();
+      console.log("📨 Respuesta del Payment Link:", data);
 
-      if (data.success) {
-        this.token = data.token;
-        console.log("✅ Token generado exitosamente");
-        console.log(`💰 [Token Response] Amount recibido: ${data.amount}`);
+      if (data.success && data.paymentLink) {
+        console.log("✅ Payment Link creado exitosamente");
+        console.log(`🔗 Payment Link URL: ${data.paymentLink}`);
+        
+        // Redirigir automáticamente al Payment Link
+        this.redirectToPaymentLink(data.paymentLink);
+        
         return data;
       } else {
-        throw new Error(data.error);
+        throw new Error(data.error || "Error desconocido creando Payment Link");
       }
     } catch (error) {
-      console.error("❌ Error generando token:", error);
+      console.error("❌ Error creando Payment Link:", error);
       throw error;
     }
   }
 
-  async initializeCheckout(orderData, billingData) {
-    try {
-      console.log("🚀 Inicializando checkout de Izipay...");
+  /**
+   * Redirigir al usuario al Payment Link
+   */
+  redirectToPaymentLink(paymentLinkUrl) {
+    console.log(`🚀 Redirigiendo a Payment Link: ${paymentLinkUrl}`);
+    
+    // Abrir en la misma ventana para una mejor experiencia de usuario
+    window.location.href = paymentLinkUrl;
+    
+    // Alternativa: abrir en nueva ventana
+    // window.open(paymentLinkUrl, '_blank');
+  }
 
-      const tokenData = await this.generateToken(orderData);
+  /**
+   * Preparar datos de billing para el Payment Link
+   */
+  prepareBillingData(formData) {
+    const convertedState = this.getRegionNameFromCode(formData.billing_state);
+    console.log(`🌍 [Billing] Conversión de región: "${formData.billing_state}" -> "${convertedState}"`);
+    
+    return {
+      firstName: formData.billing_first_name || "Test",
+      lastName: formData.billing_last_name || "User",
+      email: formData.billing_email || "test@example.com",
+      phoneNumber: formData.billing_phone || "987654321",
+      street: formData.billing_address || "Av Test 123",
+      city: formData.billing_city || "Lima",
+      state: convertedState || "Lima",
+      country: "PE",
+      postalCode: formData.billing_postal_code || "15001",
+      documentType: "DNI",
+      document: formData.billing_document || "12345678"
+    };
+  }
 
-      // PRUEBA: Usar el mismo monto que el token, sin convertir
-      console.log(`💰 [Checkout] Usando monto directo del token: ${tokenData.amount}`);
-
-      const convertedState = this.getRegionNameFromCode(billingData.state);
-      console.log(`🌍 [Izipay Config] Conversión de región: "${billingData.state}" -> "${convertedState}"`);
-
-      const iziConfig = {
-        transactionId: String(tokenData.transactionId),
-        action: "pay",
-        merchantCode: String(this.izipayConfig.merchantCode),
-        order: {
-          orderNumber: String(tokenData.orderNumber),
-          currency: this.izipayConfig.currency,
-          amount: String(tokenData.amount), // Usar el mismo monto del token
-          processType: "AT",
-          merchantBuyerId: String(this.izipayConfig.merchantCode),
-          dateTimeTransaction: String(Date.now()) + "000",
-        },
-        billing: {
-          firstName: billingData.firstName || "Test",
-          lastName: billingData.lastName || "User", 
-          email: billingData.email || "test@example.com",
-          phoneNumber: billingData.phoneNumber || "987654321",
-          street: billingData.street || "Av Test 123",
-          city: billingData.city || "Lima",
-          state: convertedState || "Lima",
-          country: "PE",
-          postalCode: billingData.postalCode || "15001",
-          documentType: "DNI",
-          document: billingData.document || "12345678"
-        }
-      };
-
-      console.log("⚙️ Configuración del SDK:", iziConfig);
-
-      // Verificar que el SDK esté disponible
-      if (typeof Izipay === "undefined") {
-        throw new Error("SDK de Izipay no está cargado");
-      }
-
-      // Verificar que el container existe
-      const container = document.getElementById("izipay-form-container");
-      if (!container) {
-        throw new Error("Container 'izipay-form-container' no encontrado en el DOM");
-      }
-
-      try {
-        // Usar la estructura exacta de la documentación oficial
-        this.checkout = new Izipay({ config: iziConfig });
-        console.log("✅ Checkout inicializado correctamente");
-        return true;
-      } catch ({Errors, message, date}) {
-        console.error("❌ Error inicializando checkout:");
-        console.log({Errors, message, date});
-        return false;
-      }
-    } catch (error) {
-      console.error("❌ Error inicializando checkout:", error);
-      return false;
+  /**
+   * Preparar datos de shipping para el Payment Link
+   */
+  prepareShippingData(formData) {
+    // Si es pickup, usar datos de billing
+    if (formData.delivery_option === 'pickup') {
+      console.log("📦 Delivery option: pickup - usando datos de billing para shipping");
+      return this.prepareBillingData(formData);
     }
+    
+    const convertedState = this.getRegionNameFromCode(formData.shipping_state);
+    console.log(`🌍 [Shipping] Conversión de región: "${formData.shipping_state}" -> "${convertedState}"`);
+    
+    return {
+      firstName: formData.shipping_first_name || formData.billing_first_name || "Test",
+      lastName: formData.shipping_last_name || formData.billing_last_name || "User",
+      email: formData.billing_email || "test@example.com",
+      phoneNumber: formData.shipping_phone || formData.billing_phone || "987654321",
+      street: formData.shipping_address || formData.billing_address || "Av Test 123",
+      city: formData.shipping_city || formData.billing_city || "Lima",
+      state: convertedState || "Lima",
+      country: "PE",
+      postalCode: formData.shipping_postal_code || formData.billing_postal_code || "15001",
+      documentType: "DNI",
+      document: formData.billing_document || "12345678"
+    };
+  }
+
+  /**
+   * Procesar pago usando Payment Link API
+   */
+  async processPayment(paymentData) {
+    try {
+      console.log("💳 Procesando pago con Payment Link API...", paymentData);
+      
+      const { orderData, formData, totalAmount } = paymentData;
+      
+      // Preparar datos de billing y shipping
+      const billingData = this.prepareBillingData(formData);
+      const shippingData = this.prepareShippingData(formData);
+      
+      console.log("👤 Billing data preparado:", billingData);
+      console.log("📦 Shipping data preparado:", shippingData);
+      
+      // Preparar orderData con el total correcto
+      const paymentOrderData = {
+        ...orderData,
+        total: totalAmount,
+        orderNumber: orderData.orderNumber || `ORDER-${Date.now()}`
+      };
+      
+      // Crear Payment Link
+      const result = await this.createPaymentLink(paymentOrderData, billingData, shippingData);
+      
+      console.log("✅ Payment Link procesado exitosamente:", result);
+      return result;
+      
+    } catch (error) {
+      console.error("❌ Error procesando pago:", error);
+      this.onPaymentError({ error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Manejar éxito del pago (para compatibilidad con checkout-controller)
+   */
+  onPaymentSuccess(response) {
+    console.log("✅ Pago exitoso (Payment Link):", response);
+  }
+
+  /**
+   * Manejar error del pago (para compatibilidad con checkout-controller)
+   */
+  onPaymentError(response) {
+    console.error("❌ Error en pago (Payment Link):", response);
+    alert(`Error en el pago: ${response.error || "Error desconocido"}`);
+  }
+
+  /**
+   * Generar referencia de orden única
+   */
+  generateOrderReference() {
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 1000);
+    return `ORDER-${timestamp}-${random}`;
+  }
+
+  /**
+   * Convertir código de región a nombre (mapeo de regiones peruanas)
+   */
+  getRegionNameFromCode(code) {
+    const regionMapping = {
+      "AMA": "Amazonas",
+      "ANC": "Áncash", 
+      "APU": "Apurímac",
+      "ARE": "Arequipa",
+      "AYA": "Ayacucho",
+      "CAJ": "Cajamarca",
+      "CAL": "Callao",
+      "CUS": "Cusco",
+      "HUV": "Huancavelica",
+      "HUC": "Huánuco",
+      "ICA": "Ica",
+      "JUN": "Junín",
+      "LAL": "La Libertad",
+      "LAM": "Lambayeque",
+      "LIM": "Lima",
+      "LOR": "Loreto",
+      "MDD": "Madre de Dios",
+      "MOQ": "Moquegua",
+      "PAS": "Pasco",
+      "PIU": "Piura",
+      "PUN": "Puno",
+      "SAM": "San Martín",
+      "TAC": "Tacna",
+      "TUM": "Tumbes",
+      "UCA": "Ucayali"
+    };
+    
+    return regionMapping[code] || code;
+  }
+
+  // ===== MÉTODOS LEGACY PARA COMPATIBILIDAD =====
+  // Estos métodos se mantienen para compatibilidad con el código existente
+  // pero no se usan en la nueva implementación de Payment Link
+
+  async generateToken(orderData) {
+    console.warn("⚠️ generateToken es un método legacy - usar createPaymentLink en su lugar");
+    throw new Error("Método no disponible en Payment Link API");
+  }
+
+  async initializeCheckout(orderData, billingData) {
+    console.warn("⚠️ initializeCheckout es un método legacy - usar createPaymentLink en su lugar");
+    throw new Error("Método no disponible en Payment Link API");
   }
 
   showPaymentForm(callbackResponse) {
-    try {
-      console.log("📋 Mostrando formulario de pago...");
-
-      if (!this.checkout || !this.token) {
-        throw new Error("Checkout no inicializado");
-      }
-
-      const paymentContainer = document.getElementById("izipay-form-container");
-      if (paymentContainer) {
-        paymentContainer.style.display = "block";
-      }
-
-      const callbackResponsePayment = callbackResponse || this.handlePaymentResponse.bind(this);
-
-      this.checkout.LoadForm({
-        authorization: this.token,
-        keyRSA: this.izipayConfig.publicKey,
-        callbackResponse: callbackResponsePayment,
-      });
-
-      console.log("✅ Formulario de pago mostrado");
-    } catch ({Errors, message, date}) {
-      console.error("❌ Error mostrando formulario:");
-      console.log({Errors, message, date});
-      throw new Error(message || "Error mostrando formulario");
-    }
+    console.warn("⚠️ showPaymentForm es un método legacy - usar createPaymentLink en su lugar");
+    throw new Error("Método no disponible en Payment Link API");
   }
 
   handlePaymentResponse(response) {
-    console.log("💳 Respuesta del pago recibida:", response);
-
-    if (response && response.success) {
-      console.log("✅ Pago exitoso");
-      this.onPaymentSuccess(response);
-    } else {
-      console.log("❌ Pago fallido o cancelado");
-      this.onPaymentError(response);
-    }
+    console.warn("⚠️ handlePaymentResponse es un método legacy - Payment Link maneja las respuestas automáticamente");
+    throw new Error("Método no disponible en Payment Link API");
   }
 
-  onPaymentSuccess(response) {
-    alert("¡Pago realizado exitosamente!");
-  }
-
-  onPaymentError(response) {
-    alert("Error en el pago. Por favor, intenta nuevamente.");
-    console.log("💥 Error en el pago:", response);
-  }
-
-  prepareBillingData(formData) {
-    const rawState = formData.get("province") || "";
-    
-    const billingData = {
-      firstName: formData.get("first_name") || "",
-      lastName: formData.get("last_name") || "",
-      email: formData.get("email") || "",
-      phoneNumber: formData.get("phone") || "",
-      street: formData.get("address1") || "",
-      city: formData.get("city") || "",
-      state: rawState,
-      country: "PE",
-      postalCode: formData.get("zip") || "",
-      documentType: "DNI",
-      document: formData.get("dni") || "",
-    };
-
-    const requiredFields = ['firstName', 'lastName', 'email', 'phoneNumber', 'street', 'city', 'document'];
-    const missingFields = requiredFields.filter(field => !billingData[field]);
-    
-    if (missingFields.length > 0) {
-      billingData.firstName = billingData.firstName || "Test";
-      billingData.lastName = billingData.lastName || "User";
-      billingData.email = billingData.email || "test@example.com";
-      billingData.phoneNumber = billingData.phoneNumber || "987654321";
-      billingData.street = billingData.street || "Av. Test 123";
-      billingData.city = billingData.city || "Lima";
-      billingData.state = billingData.state || "Lima";
-      billingData.postalCode = billingData.postalCode || "15001";
-      billingData.document = billingData.document || "12345678";
-    }
-
-    console.log('📋 Datos de billing preparados (antes de conversión):', billingData);
-    console.log('🌍 Región original del formulario:', rawState);
-    
-    return billingData;
+  convertToAmountFormat(amount) {
+    console.warn("⚠️ convertToAmountFormat es un método legacy - Payment Link maneja montos automáticamente");
+    throw new Error("Método no disponible en Payment Link API");
   }
 
   prepareIzipayPayment(orderData, totalAmount) {
-    return {
-      amount: totalAmount,
-      currency: this.izipayConfig.currency,
-      customer: {
-        email: orderData.email,
-        first_name: orderData.shipping_address?.first_name,
-        last_name: orderData.shipping_address?.last_name,
-      },
-      billing_address: orderData.shipping_address,
-      order_reference: this.generateOrderReference(),
-      return_url: window.location.origin + "/checkout/success/",
-      cancel_url: window.location.origin + "/checkout/cancel/",
-    };
+    console.warn("⚠️ prepareIzipayPayment es un método legacy - usar processPayment en su lugar");
+    return this.processPayment({ orderData, totalAmount });
   }
 
-  generateOrderReference() {
-    return (
-      "ORDER-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9)
-    );
-  }
-
-  // Función para convertir monto al formato requerido por Izipay
-  convertToAmountFormat(amount) {
-    // Izipay espera el monto en centavos (por ejemplo: 45.55 -> 4555)
-    const numericAmount = parseFloat(amount);
-    const amountInCents = Math.round(numericAmount * 100);
-    console.log(`💰 [convertToAmountFormat] Monto convertido: ${amount} (${typeof amount}) -> ${amountInCents} centavos`);
-    return amountInCents;
-  }
-
-  // Método legacy actualizado
-  async processPayment(paymentData) {
-    console.log("🔄 Procesando pago con datos:", paymentData);
-
-    try {
-      // Convertir datos legacy al nuevo formato
-      const orderData = {
-        total: paymentData.amount,
-        orderNumber: paymentData.order_reference,
-      };
-
-      const billingData = this.prepareBillingData(new FormData());
-
-      // Usar el nuevo flujo
-      const initialized = await this.initializeCheckout(orderData, billingData);
-
-      if (initialized) {
-        this.showPaymentForm();
-        return { success: true, message: "Formulario de pago mostrado" };
-      } else {
-        return { success: false, message: "Error inicializando el pago" };
-      }
-    } catch (error) {
-      console.error("❌ Error en processPayment:", error);
-      return { success: false, message: error.message };
-    }
-  }
-
-  // Función para convertir código de región a nombre
-  getRegionNameFromCode(code) {
-    const regionMap = {
-      '01': 'Amazonas',
-      '02': 'Áncash', 
-      '03': 'Apurímac',
-      '04': 'Arequipa',
-      '05': 'Ayacucho',
-      '06': 'Cajamarca',
-      '07': 'Callao',
-      '08': 'Cusco',
-      '09': 'Huancavelica',
-      '10': 'Huánuco',
-      '11': 'Ica',
-      '12': 'Junín',
-      '13': 'La Libertad',
-      '14': 'Lambayeque',
-      '15': 'Lima',
-      '16': 'Loreto',
-      '17': 'Madre de Dios',
-      '18': 'Moquegua',
-      '19': 'Pasco',
-      '20': 'Piura',
-      '21': 'Puno',
-      '22': 'San Martín',
-      '23': 'Tacna',
-      '24': 'Tumbes',
-      '25': 'Ucayali'
-    };
-
-    if (!code) {
-      console.log('⚠️ [getRegionNameFromCode] Código vacío, devolviendo "Lima"');
-      return 'Lima';
-    }
-
-    // Si ya es un nombre (contiene letras), devolverlo tal como está
-    if (/[a-zA-ZáéíóúñÁÉÍÓÚÑ]/.test(code)) {
-      console.log(`✅ [getRegionNameFromCode] Ya es un nombre: ${code}`);
-      return code;
-    }
-
-    // Convertir código numérico a string con formato correcto
-    const normalizedCode = String(code).padStart(2, '0');
-    const regionName = regionMap[normalizedCode];
-    
-    if (regionName) {
-      console.log(`✅ [getRegionNameFromCode] Código convertido: ${code} (${normalizedCode}) -> ${regionName}`);
-      return regionName;
-    } else {
-      console.warn(`⚠️ [getRegionNameFromCode] Código no encontrado: ${code} (${normalizedCode}), devolviendo código original`);
-      return code;
-    }
+  async generatePaymentLink(orderData, billingData, shippingData) {
+    console.warn("⚠️ generatePaymentLink renombrado a createPaymentLink");
+    return this.createPaymentLink(orderData, billingData, shippingData);
   }
 }
 
-// Exportar para uso global
-window.IzipayHandler = IzipayHandler;
+// Crear instancia global para compatibilidad
+window.izipayHandler = new IzipayHandler();

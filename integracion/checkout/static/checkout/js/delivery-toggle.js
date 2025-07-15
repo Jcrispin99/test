@@ -32,15 +32,8 @@ class DeliveryToggle {
         this.shippingCostElement = document.getElementById("shipping-cost");
         this.shippingMethodText = document.getElementById("shipping-method-text");
 
-        if (
-            !this.shippingRadio ||
-            !this.pickupRadio ||
-            !this.shippingFields ||
-            !this.pickupInfo
-        ) {
-            console.error(
-                "❌ [DeliveryToggle] No se encontraron todos los elementos necesarios"
-            );
+        if (!this.shippingRadio || !this.pickupRadio || !this.shippingFields || !this.pickupInfo) {
+            console.error("❌ [DeliveryToggle] No se encontraron todos los elementos necesarios");
             return;
         }
 
