@@ -28,7 +28,9 @@ class ShopifyHandler {
 
   calculateOrderTotal() {
     const items = this.getOrderItems();
-    return items.reduce((total, item) => total + item.line_price, 0);
+    const totalInCents = items.reduce((total, item) => total + item.line_price, 0);
+    // Convertir de centavos a soles con 2 decimales
+    return (totalInCents / 100).toFixed(2);
   }
 
   // Preparar datos para enviar a Shopify

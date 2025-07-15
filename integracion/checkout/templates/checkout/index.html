@@ -7,11 +7,19 @@
     <title>Checkout Personalizado</title>
     <link rel="stylesheet" href="{% static 'checkout/css/index.css' %}" />
 
-    <!-- SDK de Izipay -->
-    <script
-      src="https://sandbox-checkout.izipay.pe/payments/v1/js/index.js"
-      defer
-    ></script>
+    <!-- Animación para el spinner de carga -->
+    <style>
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+
+    <script src="https://sandbox-checkout.izipay.pe/payments/v1/js/index.js?mode=embedded&container=iframe-payment-form"></script>
   </head>
   <body>
     <div class="header-section">
@@ -120,16 +128,32 @@
             </div>
           </div>
 
-          <div class="payment-info">
-            📱 <strong>Realiza tu pago fácil y rápido con Yape o Plin</strong
-            ><br />
-            📞 Abre tu App de Yape o Plin<br />
-            📱 Envía el pago al número: <strong>919 499 627</strong><br />
-            🏪 Nombre de la empresa: <strong>Kiosk Store S.A.C</strong><br />
-            📷 Toma captura de tu pantalla 📱<br />
-            📧 Envíala a nuestro WhatsApp: <strong>948 288 725</strong
-            ><br /><br />
-            ✅ Una vez confirmado el pago, procesaremos tu pedido de inmediato.
+          <!-- Contenedor para el formulario embebido de Izipay -->
+          <div
+            id="izipay-form-container"
+            style="
+              min-height: 400px;
+              width: 100%;
+              border: 1px solid #e0e0e0;
+              border-radius: 8px;
+              padding: 20px;
+              background: #fff;
+            "
+          >
+            <div style="text-align: center; color: #666; padding: 40px">
+              <p>Cargando formulario de pago...</p>
+              <div
+                style="
+                  display: inline-block;
+                  width: 20px;
+                  height: 20px;
+                  border: 3px solid #f3f3f3;
+                  border-top: 3px solid #00a09d;
+                  border-radius: 50%;
+                  animation: spin 1s linear infinite;
+                "
+              ></div>
+            </div>
           </div>
 
           <button type="submit" class="continue-button">
@@ -166,7 +190,7 @@
     </div>
     <!-- Contenedor para el formulario de Izipay -->
     <div
-      id="izipay-container"
+      id="your-iframe-payment"
       style="
         position: fixed;
         top: 0;
@@ -192,7 +216,7 @@
         "
       >
         <h3>Procesando pago...</h3>
-        <div id="izipay-form-container"></div>
+        <div id="payment-processing-container"></div>
       </div>
     </div>
 
@@ -211,7 +235,7 @@
           console.error("❌ SDK de Izipay no se pudo cargar");
         }
       });
-      
+
       // Inicializar CheckoutController
       const checkoutController = new CheckoutController();
     </script>

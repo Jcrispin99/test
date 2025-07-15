@@ -9,7 +9,7 @@ class CheckoutController {
   }
 
   init() {
-    if (document.readyState === 'loading') {
+    if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", () => {
         this.loadInitialData();
         this.setupEventListeners();
@@ -58,7 +58,7 @@ class CheckoutController {
         // 4. Preparar datos para Izipay
         const totalAmount = this.shopifyHandler.calculateOrderTotal();
         const orderDataForIzipay = {
-          total: totalAmount.toString(),
+          total: totalAmount, // Ya viene como string con formato decimal
           orderNumber: `ORDER-${Date.now()}`,
         };
 

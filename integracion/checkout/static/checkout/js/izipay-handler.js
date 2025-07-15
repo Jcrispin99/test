@@ -50,21 +50,27 @@ class IzipayHandler {
       // Generar token
       const tokenData = await this.generateToken(orderData);
 
-      // Configurar SDK
+      // Configurar SDK según documentación oficial de Izipay
       const iziConfig = {
-        config: {
-          transactionId: tokenData.transactionId,
-          action: "pay",
-          merchantCode: this.izipayConfig.merchantCode,
-          order: {
-            orderNumber: tokenData.orderNumber,
-            currency: this.izipayConfig.currency,
-            amount: tokenData.amount,
-            processType: "AT",
-            merchantBuyerId: this.izipayConfig.merchantCode,
-            dateTimeTransaction: Date.now() + "000",
-          },
-          billing: billingData,
+        transactionId: String(tokenData.transactionId),
+        action: "pay",
+        merchantCode: String(this.izipayConfig.merchantCode),
+        order: {
+          orderNumber: String(tokenData.orderNumber),
+          showAmount: true,
+          currency: this.izipayConfig.currency,
+          amount: String(tokenData.amount),
+          payMethod: "all",
+          channel: "web",
+          processType: "AT",
+          merchantBuyerId: String(this.izipayConfig.merchantCode),
+          dateTimeTransaction: String(Date.now()) + "000",
+        },
+        billing: billingData,
+        render: {
+          typeForm: "embedded",
+          container: "izipay-form-container",
+          showButtonProcessForm: true,
         },
       };
 
@@ -75,7 +81,7 @@ class IzipayHandler {
         throw new Error("SDK de Izipay no está cargado");
       }
 
-      // Inicializar SDK
+      // Inicializar SDK según documentación oficial
       this.checkout = new Izipay({ config: iziConfig });
       console.log("✅ Checkout inicializado correctamente");
       return true;
