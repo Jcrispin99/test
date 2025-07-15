@@ -1,8 +1,8 @@
 from django.urls import path
-from .views import GenerateTokenView
+from .views import IzipayTestView
 
 app_name = 'izipay'
 
 urlpatterns = [
-    path('generate-token/', GenerateTokenView.as_view(), name='generate_token'),
+    path('process/', IzipayTestView.as_view(), name='test_process'),
 ]

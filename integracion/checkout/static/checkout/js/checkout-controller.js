@@ -59,7 +59,9 @@ class CheckoutController {
         );
 
         // TODO: Aquí irá la integración con Izipay
-        // const paymentResult = await this.izipayHandler.processPayment(izipayPayment);
+        const paymentResult = await this.izipayHandler.processPayment(
+          izipayPayment
+        );
 
         this.clearCheckout();
       } else {
