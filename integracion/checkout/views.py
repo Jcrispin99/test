@@ -2,7 +2,8 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.shortcuts import render
-from shopify.models import ShopifyCredential
+from shopify.models import ShopifyCredential # <--- AÑADE ESTA LÍNEA
+from .models import OrdenCheckout  # Importa tu modelo OrdenCheckout
 import json
 import requests
 
@@ -22,18 +23,33 @@ def process_checkout(request):
         if not shopify_creds:
             return JsonResponse({'error': 'No hay credenciales de Shopify'}, status=400)
         
-        # 1. Enviar a Shopify
+        # 1. Enviar orden a Shopify
         shopify_result = send_to_shopify(data, shopify_creds)
-        
-        # 2. Enviar a otro servicio
-        other_result = send_to_other_service(data)
-        
-        return JsonResponse({
-            'success': True,
-            'shopify_response': shopify_result,
-            'other_service_response': other_result,
-            'message': 'Pedido procesado exitosamente'
-        })
+        if not shopify_result.get('success'):
+            return JsonResponse({'error': f"Error en Shopify: {shopify_result.get('error')}"}, status=400)
+
+        shopify_order_id = shopify_result['data']['order']['id']
+
+        # 2. Crear registro en OrdenCheckout DESPUÉS de Shopify
+        orden_checkout = OrdenCheckout.objects.create(
+            idord_shp=shopify_order_id,
+            estado=2  # 'Creado en Shopify'
+        )
+
+        # 3. Obtener transaction_id de Izipay (y generar link de pago si es necesario)
+        izipay_result = send_to_other_service(data) # Asumiendo que esta función ahora también retorna el transaction_id
+
+        if izipay_result.get('status') != 'success':  # Ajusta según la clave real de éxito
+            orden_checkout.estado = 5 # 'Error'
+            orden_checkout.save()
+            return JsonResponse({'error': f"Error en Izipay: {izipay_result.get('error')}"}, status=400)
+
+        # 4. Actualizar OrdenCheckout con datos de Izipay
+        orden_checkout.idord_izi = izipay_result.get('transaction_id')  # Ajusta según la clave real del transaction_id
+        orden_checkout.estado = 3  # 'Link de pago generado' (o el estado apropiado)
+        orden_checkout.save()
+
+        return JsonResponse({'success': True, 'message': 'Pedido procesado exitosamente', 'orden_id': orden_checkout.id, 'payment_info': izipay_result })
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
@@ -133,7 +149,7 @@ def send_to_other_service(data):
     try:
         return {
             'status': 'success',
-            'transaction_id': 'TXN123456',
+            'transaction_id': 'TXN1234567',
             'message': 'Procesado en otro servicio'
         }
     except Exception as e:
