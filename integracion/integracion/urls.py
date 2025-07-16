@@ -22,4 +22,5 @@ urlpatterns = [
     path('', include('checkout.urls')),  # Checkout en la raíz
     path('checkout/', include('checkout.urls')),  # API duplicada
     path('izipay/', include('izipay.urls')),
+    path('shopify/', include('shopify.urls')),  # URLs de Shopify webhooks
 ]

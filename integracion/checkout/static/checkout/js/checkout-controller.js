@@ -52,11 +52,21 @@ class CheckoutController {
 
       if (shopifyResult.success) {
         const totalAmount = this.shopifyHandler.calculateOrderTotal();
+        
+        // Extraer el ID de la orden de Shopify de la respuesta
+        let shopifyOrderId = null;
+        if (shopifyResult.shopify_response?.success && shopifyResult.shopify_response?.data?.order?.id) {
+          shopifyOrderId = shopifyResult.shopify_response.data.order.id;
+        }
+        
         const orderDataForIzipay = {
           total: totalAmount,
           orderNumber: `ORDER-${Date.now()}`,
           productDescription: `Orden de checkout - ${new Date().toLocaleDateString()}`,
+          shopifyOrderId: shopifyOrderId
         };
+
+        console.log("🔍 [CheckoutController] Order data for Izipay:", orderDataForIzipay);
 
         const billingData = this.prepareBillingData(formData);
         const shippingData = this.prepareShippingData(formData);
